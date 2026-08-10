@@ -1214,9 +1214,12 @@ align-items:center;justify-content:center;font-size:13px}
 .tag-item .ti-del{background:#FFE0E3;color:var(--expense)}
 .tag-empty{font-size:13px;color:var(--text3);text-align:center;padding:20px;font-weight:700}
 .tag-tip{font-size:11px;color:var(--text3);margin-top:10px;line-height:1.5}
-.sync-bar{display:none;align-items:center;gap:8px;margin:0 12px 10px;padding:8px 12px;background:linear-gradient(90deg,#EAF6FF,#F0FFF4);border:2px solid #BFE3C9;border-radius:12px;font-size:12px;color:#223}
+.sync-bar{display:none;align-items:center;gap:8px;margin:0 0 10px;padding:8px 12px;background:linear-gradient(90deg,#EAF6FF,#F0FFF4);border:2px solid #BFE3C9;border-radius:12px;font-size:12px;color:#223;cursor:pointer;user-select:none;-webkit-user-select:none}
 .sync-bar .sb-dot{width:8px;height:8px;border-radius:50%;background:#9aa;flex:none}
 .sync-bar .sb-dot.on{background:#22c55e;box-shadow:0 0 0 3px rgba(34,197,94,.25)}
+.sync-bar .sb-dot.warn{background:#f59e0b;box-shadow:0 0 0 3px rgba(245,158,11,.25)}
+.sync-bar .sb-dot.err{background:#ef4444;box-shadow:0 0 0 3px rgba(239,68,68,.25)}
+.sync-bar .sb-dot.checking{background:#38bdf8;box-shadow:0 0 0 3px rgba(56,189,248,.25)}
 .sync-bar .sb-txt{font-weight:700;color:#223}
 .sync-bar .sb-dir{color:#0072BC;font-weight:700}
 .sync-bar .sb-time{margin-left:auto;color:#6b7280}
@@ -1254,10 +1257,10 @@ align-items:center;justify-content:center;font-size:13px}
 </div>
 
 <div class="main">
+<div class="sync-bar" id="sync-bar" onclick="doPullFromBanner()"></div>
 <!-- ====== 首页 ====== -->
 <div id="tab-home" class="tab-content active">
 <div class="dashboard" id="dashboard">
-<div class="sync-bar" id="sync-bar"></div>
 <div id="night-patrol-warn"></div>
 <div class="home-summary" id="home-summary"></div>
 <!-- Points Card -->
@@ -4580,13 +4583,8 @@ function init(){
  try{renderTab('home');renderToday();}catch(e){console.error('[init] home render:',e);}
  checkAwards();
  checkBackupHint();
- // 每日自动同步：打开时若距上次同步已超过 20 小时，立即同步一次（替代原来的每60秒同步）
- try{
-  if(DB.get('sync_on',false)&&DB.get('sync_auto',true)){
-   const last=DB.get('sync_lastpull',0)||0;
-   if(Date.now()-last>20*3600000 && (Date.now()-(DB.get('sync_just_pulled',0)||0))>60000){ supaPull(true); }
-  }
- }catch(e){}
+ // 云端状态：打开页面只读取状态（不自动下载），由用户下拉页面顶部手动同步
+ try{ supaCheckStatus(); }catch(e){}
  // 全局点击 = 用户互动（用于小新"无聊"状态判定）
  document.addEventListener('click',()=>markInteract(),{passive:true});
  // 离家出走回来检查（页面重载后补播）
@@ -5379,7 +5377,7 @@ function renderWorkWeekHint(){
 function renderTodayIfHome(){if(state.tab==='home')renderToday();}
 
 // ============ 云同步（Supabase · 白名单模式 + 激进瘦身 v31） ============
-var supaTimer=null, _supaManual=false;
+var supaTimer=null, _supaManual=false, _syncDirty=false, _cloudState='checking', _cloudCount=0;
 function getSyncCfg(){return{url:DB.get('sync_url',''),key:DB.get('sync_key',''),id:DB.get('sync_id',''),on:DB.get('sync_on',false)};}
 
 // v32.5: 完整白名单——包含所有 state 键（小标量键全量同步，大数组键截断）
@@ -5506,10 +5504,11 @@ function collectSyncData(){
  return pkg;
 }
 function supaSchedule(k){
- if(k==='sync_lastpush'||k==='sync_lastpull'||k==='sync_url'||k==='sync_key'||k==='sync_id'||k==='sync_on')return;
+ if(k.indexOf('sync_')===0)return; // 跳过同步内部键，避免递归触发
  if(!DB.get('sync_on',false))return;
  if(!DB.get('sync_url','')||!DB.get('sync_key','')||!DB.get('sync_id',''))return;
- clearTimeout(supaTimer); supaTimer=setTimeout(supaPush,1500);
+ _syncDirty=true;
+ clearTimeout(supaTimer); supaTimer=setTimeout(function(){ _syncDirty=false; supaPush(); },1500);
 }
 // 解析 Supabase 错误，返回友好中文消息
 function supaFriendlyError(statusText){
@@ -5589,7 +5588,7 @@ async function supaPush(retryCount){
   if(pkg._not_synced&&pkg._not_synced.length)detail+=' · '+pkg._not_synced.length+'项未同步('+pkg._not_synced.join(',')+')';
   detail+=')';
   if(_supaManual)toast('已推送到服务器 ✓ '+detail);
-  renderSyncBar();
+  setCloudState('latest');
  }catch(e){
   var m=e.message||'';
   // 超时类错误自动重试 1 次
@@ -5603,6 +5602,7 @@ async function supaPush(retryCount){
 async function supaPull(silent){
  const cfg=getSyncCfg(); if(!cfg.on||!cfg.url||!cfg.key||!cfg.id){if(!silent)toast('先填好 Supabase 配置');return;}
  try{
+  setCloudState('sync');
   var r=await supaFetch(cfg.url.replace(/\/$/,'')+'/rest/v1/wb_sync?sync_id=eq.'+encodeURIComponent(cfg.id)+'&select=sync_id,data,updated_at',{mode:'cors',headers:{'apikey':cfg.key,'Authorization':'Bearer '+cfg.key},timeout:20000});
   if(!r.ok){var t=await r.text().catch(function(){return'';});throw new Error('读取失败('+r.status+')'+(t?' '+t.slice(0,120):''));}
   var arr=await r.json();
@@ -5613,7 +5613,7 @@ async function supaPull(silent){
   var remote=(raw && typeof raw === 'object') ? raw : {};
   var remoteTs=new Date(row.updated_at).getTime()||0;
   var localTs=DB.get('sync_lastpull',0);
-  if(localTs && remoteTs<=localTs){ if(!silent)toast('已经是最新啦'); return; }
+  if(localTs && remoteTs<=localTs){ if(!silent)toast('已经是最新啦'); setCloudState('latest'); return; }
   // v32.5: 拉取时验证值可安全存储（接受对象/数组/字符串/数字，只拒绝真正的损坏数据）
   var written=0, skippedBad=0;
   Object.keys(remote).forEach(function(k){
@@ -5680,13 +5680,61 @@ function renderSyncBar(){
  var el=document.getElementById('sync-bar'); if(!el)return;
  if(!DB.get('sync_on',false)){ el.style.display='none'; return; }
  el.style.display='flex';
- var dev=supaDevice();
- var auto=DB.get('sync_auto',true);
- var act=DB.get('sync_last_action','');
- var actDev=act==='上传'?DB.get('sync_lastpush_device',dev):act==='下载'?DB.get('sync_lastpull_device',dev):'';
- var at=act==='上传'?DB.get('sync_lastpush_at',0):DB.get('sync_lastpull_at',0);
- var arrow=act==='上传'?'↑ 上传':act==='下载'?'↓ 下载':'';
- el.innerHTML='<span class="sb-dot on"></span><span class="sb-txt">同步·自动'+(auto?'':'(已关)')+'</span>'+(arrow?'<span class="sb-dir">'+arrow+(actDev?(' '+actDev):'')+'</span>':'')+'<span class="sb-time">'+fmtAgo(at)+'</span>';
+ var html='';
+ if(_cloudState==='checking') html='<span class="sb-dot checking"></span><span class="sb-txt">正在检查云端…</span>';
+ else if(_cloudState==='latest') html='<span class="sb-dot on"></span><span class="sb-txt">已是最新</span><span class="sb-time">'+fmtAgo(DB.get('sync_lastpull_at',0))+'</span>';
+ else if(_cloudState==='updates') html='<span class="sb-dot warn"></span><span class="sb-txt">有 '+_cloudCount+' 条云端更新，下拉同步</span>';
+ else if(_cloudState==='pulling') html='<span class="sb-dot"></span><span class="sb-txt">下拉以同步…</span>';
+ else if(_cloudState==='pullrelease') html='<span class="sb-dot warn"></span><span class="sb-txt">松开立即同步</span>';
+ else if(_cloudState==='sync') html='<span class="sb-dot checking"></span><span class="sb-txt">正在同步…</span>';
+ else if(_cloudState==='error') html='<span class="sb-dot err"></span><span class="sb-txt">云端状态获取失败，点击重试</span>';
+ else if(_cloudState==='empty') html='<span class="sb-dot on"></span><span class="sb-txt">云端暂无数据</span>';
+ else html='<span class="sb-dot on"></span><span class="sb-txt">已是最新</span>';
+ el.innerHTML=html;
+}
+function setCloudState(s,c){ _cloudState=s; if(typeof c==='number')_cloudCount=c; renderSyncBar(); }
+function doPull(){
+ if(!DB.get('sync_on',false)){ toast('同步未开启'); return; }
+ var cfg=getSyncCfg(); if(!cfg.url||!cfg.key||!cfg.id){ toast('先填好 Supabase 配置'); return; }
+ setCloudState('sync'); supaPull(false);
+}
+function doPullFromBanner(){
+ if(_cloudState==='updates'||_cloudState==='error'||_cloudState==='empty'){ doPull(); }
+ else { supaCheckStatus(); }
+}
+function countRemoteDiff(remote){
+ var n=0;
+ Object.keys(remote).forEach(function(k){
+  if(k.charAt(0)==='_')return;
+  var rv=remote[k];
+  if(typeof rv!=='string'||!rv)return;
+  var rp; try{ rp=JSON.parse(rv); }catch(e){ rp=rv; }
+  var lv=DB.get(k,undefined);
+  if(JSON.stringify(lv)!==JSON.stringify(rp))n++;
+ });
+ return n;
+}
+async function supaCheckStatus(){
+ var cfg=getSyncCfg();
+ if(!cfg.on||!cfg.url||!cfg.key||!cfg.id){ setCloudState('off'); return; }
+ if((Date.now()-(DB.get('sync_just_pulled',0)||0))<60000){ setCloudState('latest'); return; }
+ setCloudState('checking');
+ try{
+  var base=cfg.url.replace(/\/$/,'');
+  var r=await supaFetch(base+'/rest/v1/wb_sync?sync_id=eq.'+encodeURIComponent(cfg.id)+'&select=sync_id,updated_at',{headers:{'apikey':cfg.key,'Authorization':'Bearer '+cfg.key},timeout:15000});
+  if(!r.ok){ setCloudState('error'); return; }
+  var arr=await r.json();
+  if(!arr||!arr.length){ setCloudState('empty'); return; }
+  var remoteTs=new Date(arr[0].updated_at).getTime()||0;
+  var localTs=DB.get('sync_lastpull',0);
+  if(localTs && remoteTs<=localTs){ setCloudState('latest'); return; }
+  // 有更新 → 取全量计 diff（仅读取，不写入本地）
+  var pr=await supaFetch(base+'/rest/v1/wb_sync?sync_id=eq.'+encodeURIComponent(cfg.id)+'&select=data',{headers:{'apikey':cfg.key,'Authorization':'Bearer '+cfg.key},timeout:15000});
+  if(!pr.ok){ setCloudState('error'); return; }
+  var pa=await pr.json();
+  var remote=(pa&&pa.length&&pa[0].data&&typeof pa[0].data==='object')?pa[0].data:{};
+  setCloudState('updates',countRemoteDiff(remote));
+ }catch(e){ setCloudState('error'); }
 }
 function supaUpload(){ var su=(document.getElementById('sync-url')?.value||'').trim(); var sk=(document.getElementById('sync-key')?.value||'').trim(); var si=(document.getElementById('sync-id')?.value||'').trim(); if(su)DB.set('sync_url',su); if(sk)DB.set('sync_key',sk); if(si)DB.set('sync_id',si); var cfg=getSyncCfg(); if(!cfg.url||!cfg.key||!cfg.id){toast('先填好 Supabase 配置');return;} _supaManual=true; toast('正在上传…'); supaPush().finally(function(){_supaManual=false;}); }
 function supaDownload(){ var cfg=getSyncCfg(); if(!cfg.url||!cfg.key||!cfg.id){toast('先填好 Supabase 配置');return;} DB.set('sync_lastpull',0); _supaManual=true; toast('正在下载…'); supaPull(false).finally(function(){_supaManual=false;}); }
@@ -5696,16 +5744,39 @@ refreshMineAnniv();
 updateAnnivHomeHint();
 maybeAnnivPopup();
 if(typeof renderToday==='function'&&state.tab==='home')renderToday();
-if(DB.get('sync_on',false) && (Date.now()-(DB.get('sync_just_pulled',0)||0))>60000){ supaPull(true); }
-// 定时自动同步：每 60 秒上传本机变更；若服务器有更新的他机数据则拉取并刷新
+if(DB.get('sync_on',false)) supaCheckStatus();
+// 定时安全网：仅在本机有未上传变更时上传（不自动下载），保持云端最新
  setInterval(function(){
-  if(DB.get('sync_on',false)&&DB.get('sync_auto',true)){
-   var jp=DB.get('sync_just_pulled',0)||0;
-   if(Date.now()-jp>60000){
-     supaPush().then(function(){ if(DB.get('sync_on',false)&&DB.get('sync_auto',true)&&(Date.now()-(DB.get('sync_just_pulled',0)||0))>60000) supaPull(true); });
-   }
+  if(_syncDirty && DB.get('sync_on',false)&&DB.get('sync_auto',true)){
+   _syncDirty=false; supaPush();
   }
- },86400000);
+ },60000);
+// 下拉刷新：在页面顶部向下拖动（触屏/鼠标均可）触发手动同步（不自动下载）
+(function setupPullRefresh(){
+ var startY=null, pulling=false, dy=0, TH=64, lastHint=null, savedState=null;
+ function getScrollTop(){ return window.pageYOffset||document.documentElement.scrollTop||document.body.scrollTop||0; }
+ function onDown(y){ if(getScrollTop()>4) return; startY=y; pulling=true; dy=0; lastHint=null; savedState=_cloudState; }
+ function onMove(y){
+  if(!pulling||startY===null) return;
+  dy=y-startY;
+  if(dy<=0){ var m0=document.querySelector('.main'); if(m0)m0.style.transform=''; return; }
+  var off=Math.min(dy*0.45,80);
+  var main=document.querySelector('.main'); if(main)main.style.transform='translateY('+off+'px)';
+  var hint=dy>TH?'pullrelease':'pulling';
+  if(hint!==lastHint){ lastHint=hint; setCloudState(hint); }
+ }
+ function onUp(){
+  if(!pulling) return;
+  var passed=dy>TH;
+  pulling=false; startY=null; lastHint=null;
+  var m=document.querySelector('.main'); if(m)m.style.transform='';
+  if(passed) doPull(); else if(savedState) setCloudState(savedState);
+ }
+ window.addEventListener('pointerdown',function(e){ onDown(e.clientY); },{passive:true});
+ window.addEventListener('pointermove',function(e){ onMove(e.clientY); },{passive:true});
+ window.addEventListener('pointerup',onUp,{passive:true});
+ window.addEventListener('pointercancel',onUp,{passive:true});
+})();
 
 
 </script>
