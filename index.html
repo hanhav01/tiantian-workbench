@@ -4584,7 +4584,7 @@ function init(){
  try{
   if(DB.get('sync_on',false)&&DB.get('sync_auto',true)){
    const last=DB.get('sync_lastpull',0)||0;
-   if(Date.now()-last>20*3600000){ supaPull(true); }
+   if(Date.now()-last>20*3600000 && (Date.now()-(DB.get('sync_just_pulled',0)||0))>60000){ supaPull(true); }
   }
  }catch(e){}
  // 全局点击 = 用户互动（用于小新"无聊"状态判定）
@@ -5634,6 +5634,8 @@ async function supaPull(silent){
   renderSyncBar();
   // v32.1: 写入后先 normalizeState 修复脏数据，再 reload（防止模块崩溃）
   try{ migrateData(); normalizeState(); }catch(e){ console.warn('[sync pull] normalize 失败',e); }
+  // 标记本次已拉取并重载，避免 reload 后 5697 的无条件 supaPull 再次触发 reload 造成死循环
+  DB.set('sync_just_pulled',Date.now());
   setTimeout(function(){location.reload();},400);
  }catch(e){ if(!silent)toast('同步失败：'+supaFriendlyError(e.message)); }
 }
@@ -5694,11 +5696,14 @@ refreshMineAnniv();
 updateAnnivHomeHint();
 maybeAnnivPopup();
 if(typeof renderToday==='function'&&state.tab==='home')renderToday();
-if(DB.get('sync_on',false))supaPull(true);
+if(DB.get('sync_on',false) && (Date.now()-(DB.get('sync_just_pulled',0)||0))>60000){ supaPull(true); }
 // 定时自动同步：每 60 秒上传本机变更；若服务器有更新的他机数据则拉取并刷新
  setInterval(function(){
   if(DB.get('sync_on',false)&&DB.get('sync_auto',true)){
-   supaPush().then(function(){ if(DB.get('sync_on',false)&&DB.get('sync_auto',true)) supaPull(true); });
+   var jp=DB.get('sync_just_pulled',0)||0;
+   if(Date.now()-jp>60000){
+     supaPush().then(function(){ if(DB.get('sync_on',false)&&DB.get('sync_auto',true)&&(Date.now()-(DB.get('sync_just_pulled',0)||0))>60000) supaPull(true); });
+   }
   }
  },86400000);
 
