@@ -142,6 +142,28 @@ box-shadow:2px 2px 0 var(--ink);text-align:center}
 .rec-item{display:flex;align-items:center;gap:12px;padding:12px 0;
 border-bottom:2px dashed var(--border2)}
 .rec-item:last-child{border-bottom:none}
+/* 记账：视图切换 / 区间筛选 / 分析图表 */
+.bill-viewbar{display:flex;gap:8px;margin:14px 4px 8px}
+.bv-tab{flex:1;text-align:center;padding:9px 0;border:2px solid var(--border2);border-radius:12px;font-weight:800;font-size:13px;color:var(--text3);cursor:pointer;background:var(--surface)}
+.bv-tab.active{background:var(--acc);color:#fff;border-color:var(--acc)}
+.bill-rangebar{display:flex;align-items:center;gap:6px;margin:0 4px 4px;flex-wrap:wrap}
+.br-btn{padding:5px 12px;border:2px solid var(--border2);border-radius:20px;font-size:12px;font-weight:700;color:var(--text2);cursor:pointer;background:var(--surface)}
+.br-btn.active{background:var(--acc);color:#fff;border-color:var(--acc)}
+.br-cur{margin-left:auto;font-size:11px;color:var(--text3);font-weight:600}
+.pie-legend{margin-top:10px;display:flex;flex-direction:column;gap:6px}
+.pl-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:10px;cursor:pointer;background:var(--surface2)}
+.pl-item:hover{background:var(--surface3)}
+.pl-dot{width:11px;height:11px;border-radius:50%;flex:none}
+.pl-cat{flex:1;font-size:13px;font-weight:700}
+.pl-amt{font-size:13px;font-weight:800;font-variant-numeric:tabular-nums}
+.pl-pct{font-size:11px;color:var(--text3);width:34px;text-align:right}
+.pie-tip{font-size:11px;color:var(--text3);text-align:center;margin-top:8px}
+.top3-item{display:flex;align-items:center;gap:10px;padding:9px 8px;border-bottom:2px dashed var(--border2);cursor:pointer}
+.top3-item:last-child{border-bottom:none}
+.top3-item:hover{background:var(--surface2)}
+.t3-rank{width:22px;height:22px;border-radius:50%;background:var(--acc);color:#fff;font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center;flex:none}
+.t3-cat{flex:1;font-size:13px;font-weight:700}
+.t3-amt{font-size:14px;font-weight:800;color:var(--exp);font-variant-numeric:tabular-nums}
 .rec-cat{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;
 justify-content:center;font-size:17px;flex-shrink:0;border:2px solid var(--ink);background:var(--surface2)}
 .rec-mid{flex:1;min-width:0}
@@ -1120,6 +1142,7 @@ border:1.5px solid rgba(0,0,0,.15);cursor:pointer;display:inline-flex;align-item
 .wc-note{font-size:12.5px;color:var(--text2);line-height:1.5;background:var(--surface2);
 border-radius:8px;padding:8px 10px;white-space:pre-wrap;word-break:break-word}
 .wc-created{font-size:10px;color:var(--text3);margin-top:6px}
+.wc-next{font-size:11px;color:var(--acc);font-weight:700;margin-top:4px}
 .wc-acts{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
 .wc-act{flex:1;min-width:64px;min-height:42px;border-radius:10px;font-size:12px;font-weight:800;
 border:2.5px solid var(--ink);background:var(--surface);cursor:pointer;display:flex;align-items:center;
@@ -1223,6 +1246,7 @@ align-items:center;justify-content:center;font-size:13px}
 .sync-bar .sb-txt{font-weight:700;color:#223}
 .sync-bar .sb-dir{color:#0072BC;font-weight:700}
 .sync-bar .sb-time{margin-left:auto;color:#6b7280}
+.sync-bar .sb-ver{margin-left:auto;color:#6b7280;font-size:11px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;max-width:62%;overflow:hidden;text-overflow:ellipsis}
 </style>
 </head>
 <body>
@@ -1314,6 +1338,17 @@ align-items:center;justify-content:center;font-size:13px}
 </div>
 <div class="acct-row" id="acct-row"></div>
 
+<div class="bill-viewbar">
+<div class="bv-tab active" id="bv-list" onclick="setBillView('list')">📋 流水</div>
+<div class="bv-tab" id="bv-analysis" onclick="setBillView('analysis')">📊 分析</div>
+</div>
+<div id="bill-list-view">
+<div class="bill-rangebar">
+<span class="br-btn active" id="br-week" onclick="setBillRange('week')">本周</span>
+<span class="br-btn" id="br-month" onclick="setBillRange('month')">本月</span>
+<span class="br-btn" id="br-custom" onclick="showBillCustom()">自定义</span>
+<span class="br-cur" id="br-cur"></span>
+</div>
 <div class="sec-title">
 <div class="left"><div class="dot" style="background:var(--acc)"></div>账目流水</div>
 <div class="action" onclick="filterRecords()">
@@ -1321,6 +1356,13 @@ align-items:center;justify-content:center;font-size:13px}
 </div>
 </div>
 <div id="rec-list"></div>
+</div>
+<div id="bill-analysis-view" style="display:none">
+<div class="sec-title"><div class="left"><div class="dot" style="background:var(--acc)"></div>📊 本月消费分析</div></div>
+<div class="card" id="bill-pie"></div>
+<div class="card" id="bill-bar"></div>
+<div class="card" id="bill-top3"></div>
+</div>
 </div>
 
 <!-- ====== 习惯 二级页 ====== -->
@@ -2803,22 +2845,118 @@ function checkBackupHint(){
 }
 
 // ============ Accounting ============
+// ============ 记账视图 / 区间 / 分析 ============
+var billView='list';      // 'list' | 'analysis'
+var billRange='month';    // 'week' | 'month' | 'custom'
+var billCustomStart='', billCustomEnd='';
+function weekRange(){
+ const today=new Date(); today.setHours(0,0,0,0);
+ const day=(today.getDay()+6)%7; // 周一为起点
+ const start=new Date(today); start.setDate(start.getDate()-day);
+ const end=new Date(start); end.setDate(end.getDate()+6);
+ return {start:dateStr(start), end:dateStr(end)};
+}
+function _billInRange(r,range){
+ if(range==='week'){ const wk=weekRange(); return r.date>=wk.start && r.date<=wk.end; }
+ if(range==='month'){ return r.date.startsWith(todayStr().slice(0,7)); }
+ if(range==='custom'){ return r.date>=billCustomStart && r.date<=billCustomEnd; }
+ return true;
+}
+function setBillView(v){ billView=v; renderAccounting(); }
+function setBillRange(r){ billRange=r; renderAccounting(); }
+function showBillCustom(){
+ const s=window.prompt('自定义开始日期（YYYY-MM-DD）', billCustomStart||todayStr());
+ if(!s)return;
+ const e=window.prompt('自定义结束日期（YYYY-MM-DD）', billCustomEnd||todayStr());
+ if(!e)return;
+ billCustomStart=s; billCustomEnd=e; billRange='custom'; renderAccounting();
+}
+const PIE_COLORS=['#E60012','#0072BC','#4CAF50','#FF9800','#6C5CE7','#C2185B','#00897B','#5D4037','#3949AB','#AD1457','#00ACC1','#8D6E63','#43A047','#FB8C00'];
+function _monthExpense(){ const month=todayStr().slice(0,7); return state.records.filter(r=>r.type==='expense'&&r.date.startsWith(month)); }
+function renderBillPie(){
+ const exp=_monthExpense();
+ const map={}; exp.forEach(r=>{map[r.cat]=(map[r.cat]||0)+r.amount;});
+ const cats=Object.keys(map);
+ const el=document.getElementById('bill-pie');
+ if(!cats.length){ el.innerHTML='<div class="empty-state">本月还没有支出记录哦～</div>'; return; }
+ const total=cats.reduce((s,c)=>s+map[c],0);
+ let svg='<svg viewBox="0 0 200 200" style="width:100%;max-width:220px;display:block;margin:0 auto">';
+ let ang=-Math.PI/2;
+ cats.forEach((c,i)=>{
+   const frac=map[c]/total; const a2=ang+frac*Math.PI*2;
+   const x1=100+90*Math.cos(ang), y1=100+90*Math.sin(ang);
+   const x2=100+90*Math.cos(a2), y2=100+90*Math.sin(a2);
+   const large=frac>0.5?1:0;
+   svg+='<path d="M100 100 L'+x1.toFixed(1)+' '+y1.toFixed(1)+' A90 90 0 '+large+' 1 '+x2.toFixed(1)+' '+y2.toFixed(1)+' Z" fill="'+PIE_COLORS[i%PIE_COLORS.length]+'" data-cat="'+c+'" style="cursor:pointer"><title>'+hEsc(c)+' '+fmtMoney(map[c])+'（'+(frac*100).toFixed(0)+'%）</title></path>';
+   ang=a2;
+ });
+ svg+='<circle cx="100" cy="100" r="40" fill="var(--surface)"/></svg>';
+ let legend='<div class="pie-legend">';
+ cats.forEach((c,i)=>{ const frac=(map[c]/total*100).toFixed(0); legend+='<div class="pl-item" data-cat="'+c+'"><span class="pl-dot" style="background:'+PIE_COLORS[i%PIE_COLORS.length]+'"></span><span class="pl-cat">'+(CAT_ICONS[c]||'📝')+' '+hEsc(c)+'</span><span class="pl-amt">'+fmtMoney(map[c])+'</span><span class="pl-pct">'+frac+'%</span></div>'; });
+ legend+='</div><div class="pie-tip">点分类可筛选流水 ↓</div>';
+ el.innerHTML=svg+legend;
+ el.querySelectorAll('[data-cat]').forEach(function(p){ p.onclick=function(){ setFilter(p.getAttribute('data-cat')); setBillView('list'); }; });
+}
+function renderBillBar(){
+ const exp=_monthExpense();
+ const map={}; exp.forEach(r=>{map[r.date]=(map[r.date]||0)+r.amount;});
+ const days=Object.keys(map).sort();
+ const el=document.getElementById('bill-bar');
+ if(!days.length){ el.innerHTML='<div class="empty-state">本月还没有支出记录哦～</div>'; return; }
+ const max=Math.max.apply(null,days.map(d=>map[d]));
+ const W=Math.max(days.length*22+12,120); const H=130;
+ let svg='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto">';
+ days.forEach((d,i)=>{
+   const h=max? (map[d]/max)*(H-22):0; const x=i*22+8; const y=H-12-h;
+   svg+='<rect x="'+x+'" y="'+y.toFixed(1)+'" width="14" height="'+h.toFixed(1)+'" rx="3" fill="#FF8A65"><title>'+d.slice(5)+' '+fmtMoney(map[d])+'</title></rect>';
+   if(i%3===0||i===days.length-1) svg+='<text x="'+(x+7)+'" y="'+(H-2)+'" font-size="8" fill="#888" text-anchor="middle">'+d.slice(5)+'</text>';
+ });
+ svg+='</svg>';
+ el.innerHTML='<div style="font-weight:800;margin-bottom:6px">本月每日支出趋势</div>'+svg;
+}
+function renderBillTop3(){
+ const exp=_monthExpense();
+ const map={}; exp.forEach(r=>{map[r.cat]=(map[r.cat]||0)+r.amount;});
+ const cats=Object.keys(map).sort((a,b)=>map[b]-map[a]).slice(0,3);
+ const el=document.getElementById('bill-top3');
+ if(!cats.length){ el.innerHTML='<div class="empty-state">本月还没有支出记录哦～</div>'; return; }
+ let html='<div style="font-weight:800;margin-bottom:6px">本月支出 Top 3</div>';
+ cats.forEach((c,i)=>{ html+='<div class="top3-item" data-cat="'+c+'"><span class="t3-rank">'+(i+1)+'</span><span class="t3-cat">'+(CAT_ICONS[c]||'📝')+' '+hEsc(c)+'</span><span class="t3-amt">'+fmtMoney(map[c])+'</span></div>'; });
+ el.innerHTML=html;
+ el.querySelectorAll('[data-cat]').forEach(function(p){ p.onclick=function(){ setFilter(p.getAttribute('data-cat')); setBillView('list'); }; });
+}
 function renderAccounting(){
+ if(typeof document==='undefined')return;
  const month=todayStr().slice(0,7);
  const inc=state.records.filter(r=>r.type==='income'&&r.date.startsWith(month)).reduce((s,r)=>s+r.amount,0);
  const exp=state.records.filter(r=>r.type==='expense'&&r.date.startsWith(month)).reduce((s,r)=>s+r.amount,0);
- document.getElementById('acct-summary').innerHTML=
+ const sumEl=document.getElementById('acct-summary'); if(sumEl)sumEl.innerHTML=
   '<div class="sum-box"><div class="sl">本月收入</div><div class="sv inc">'+fmtMoney(inc)+'</div></div>'+
   '<div class="sum-box"><div class="sl">本月支出</div><div class="sv exp">'+fmtMoney(exp)+'</div></div>'+
   '<div class="sum-box"><div class="sl">本月结余</div><div class="sv">'+fmtMoney(inc-exp)+'</div></div>';
- document.getElementById('acct-row').innerHTML=state.accounts.map(a=>
+ const rowEl=document.getElementById('acct-row'); if(rowEl)rowEl.innerHTML=state.accounts.map(a=>
   '<div class="acct-chip"><div class="at">'+(a.icon||'')+' '+hEsc(a.name)+'</div><div class="av '+(a.balance<0?'neg':'')+'">'+fmtMoney(a.balance)+'</div></div>'
  ).join('');
- const filtered=state.settings.filterCat?state.records.filter(r=>r.cat===state.settings.filterCat):state.records;
+ // 视图切换
+ const listView=document.getElementById('bill-list-view'), anView=document.getElementById('bill-analysis-view');
+ if(listView)listView.style.display = billView==='list'?'':'none';
+ if(anView)anView.style.display = billView==='analysis'?'':'none';
+ const bvl=document.getElementById('bv-list'), bva=document.getElementById('bv-analysis');
+ if(bvl)bvl.classList.toggle('active',billView==='list');
+ if(bva)bva.classList.toggle('active',billView==='analysis');
+ // 区间按钮高亮
+ ['week','month','custom'].forEach(function(r){ const el=document.getElementById('br-'+r); if(el)el.classList.toggle('active',billRange===r); });
+ var curTxt=''; if(billRange==='week')curTxt='本周'; else if(billRange==='month')curTxt='本月'; else curTxt=(billCustomStart||'?')+' ~ '+(billCustomEnd||'?');
+ const curEl=document.getElementById('br-cur'); if(curEl)curEl.textContent=curTxt+(state.settings.filterCat?(' · '+state.settings.filterCat):'');
+ // 时间线（按区间 + 分类 过滤，默认时间倒序）
+ const filtered=state.records.filter(function(r){
+   if(state.settings.filterCat && r.cat!==state.settings.filterCat)return false;
+   return _billInRange(r,billRange);
+ });
  const sorted=[...filtered].sort((a,b)=>b.ts-a.ts);
  let html='';let lastDate='';
  if(sorted.length===0){
-  html='<div class="empty-state"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="14" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/></svg><p>还没有记账记录<br>点击右下角 + 开始</p></div>';
+  html='<div class="empty-state"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="14" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/></svg><p>这个区间还没有记录<br>换个区间或去记一笔吧～</p></div>';
  }else{
   sorted.forEach(r=>{
    if(r.date!==lastDate){
@@ -2833,7 +2971,9 @@ function renderAccounting(){
    html+='<div class="rec-item'+(isImpulse?' impulse-row':'')+'" onclick="openRecordAction(\''+r.id+'\')"><div class="rec-cat" style="background:var(--surface2)">'+catIcon+'</div><div class="rec-mid"><div class="rt">'+hEsc(r.sub||r.cat)+(r.note?' · '+hEsc(r.note):'')+'</div><div class="rs">'+hEsc(r.cat)+' · '+hEsc((state.accounts.find(a=>a.id===r.acct)||{}).name||'')+(tagHtml?' · ':'')+tagHtml+'</div></div><div class="rec-amt '+cls+'">'+sign+fmtMoney(r.amount)+'</div><div class="rec-del" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/></svg></div></div>';
   });
  }
- document.getElementById('rec-list').innerHTML=html;
+ const recEl=document.getElementById('rec-list'); if(recEl)recEl.innerHTML=html;
+ // 分析视图
+ if(billView==='analysis'){ renderBillPie(); renderBillBar(); renderBillTop3(); }
 }
 
 function openRecordModal(prefill){
@@ -4928,6 +5068,43 @@ function advanceDate(due,repeat){
  else if(repeat==='yearly')base.setFullYear(base.getFullYear()+1);
  return dateStr(base);
 }
+// 下一个周期出现时间：从完成时间顺延，并保持任务原本的周期起始日（如每周一→下周一）
+function nextCycleDue(t,fromTs){
+ if(!t.repeat||t.repeat==='none')return null;
+ const from=new Date(fromTs); from.setHours(0,0,0,0);
+ if(t.repeat==='weekly'){
+   const wd=new Date((t.due||dateStr(from))+'T00:00:00').getDay();
+   const d=new Date(from); d.setDate(d.getDate()+1);
+   while(d.getDay()!==wd) d.setDate(d.getDate()+1);
+   return dateStr(d);
+ }
+ if(t.repeat==='monthly'){
+   const base=new Date((t.due||dateStr(from))+'T00:00:00');
+   let d=new Date(from.getFullYear(),from.getMonth()+1,base.getDate());
+   if(d<=from) d=new Date(from.getFullYear(),from.getMonth()+2,base.getDate());
+   return dateStr(d);
+ }
+ if(t.repeat==='yearly'){
+   const base=new Date((t.due||dateStr(from))+'T00:00:00');
+   return dateStr(new Date(from.getFullYear()+1,base.getMonth(),base.getDate()));
+ }
+ return dateStr(new Date(from.getTime()+7*86400000));
+}
+// 待处理只显示"当前周期内"的未完成任务；跨周期（如下周/下月）的克隆体暂不显示
+function isCurrentCycle(t){
+ if(!t.repeat||t.repeat==='none')return true;
+ if(!t.due)return true;
+ const today=new Date(); today.setHours(0,0,0,0);
+ const d=new Date(t.due+'T00:00:00');
+ if(t.repeat==='weekly'){
+   const mon=function(x){const y=new Date(x);const day=(y.getDay()+6)%7;y.setDate(y.getDate()-day);y.setHours(0,0,0,0);return y;};
+   return mon(d).getTime()===mon(today).getTime();
+ }
+ if(t.repeat==='monthly')return d.getFullYear()===today.getFullYear()&&d.getMonth()===today.getMonth();
+ if(t.repeat==='yearly')return d.getFullYear()===today.getFullYear();
+ return true;
+}
+function fmtNextDue(due){ if(!due)return ''; const d=new Date(due+'T00:00:00'); return (d.getMonth()+1)+'月'+d.getDate()+'日'; }
 function sortTasks(arr){
  const order={1:0,2:1,3:2};
  function key(t){
@@ -4948,7 +5125,7 @@ function sortTasks(arr){
 function renderWork(){
  try{
  const all=getTasks();
- const pending=all.filter(t=>!t.done);
+ const pending=all.filter(t=>!t.done && isCurrentCycle(t));
  const done=all.filter(t=>t.done&&!t.archived);
  const f=state.workFilter||'all';
  const tg=workTagFilter;
@@ -4992,12 +5169,13 @@ function renderWorkList(){
  const f=state.workFilter||'all';
  const tg=workTagFilter;
  workShowHist=(f==='routine');
+ const pendF=function(t){return !t.done && isCurrentCycle(t);};
  let list;
- if(tg)list=sortTasks(all.filter(t=>(t.contacts||[]).includes(tg)));
+ if(tg)list=sortTasks(all.filter(t=>(t.contacts||[]).includes(tg)&&pendF(t)));
  else if(f==='done')list=sortTasks(all.filter(t=>t.done&&!t.archived));
- else if(f==='routine')list=sortTasks(all.filter(t=>!t.done&&t.repeat&&t.repeat!=='none'));
- else if(f==='all')list=sortTasks(all.filter(t=>!t.done));
- else list=sortTasks(all.filter(t=>!t.done&&String(t.level)===f));
+ else if(f==='routine')list=sortTasks(all.filter(t=>pendF(t)&&t.repeat&&t.repeat!=='none'));
+ else if(f==='all')list=sortTasks(all.filter(pendF));
+ else list=sortTasks(all.filter(t=>pendF(t)&&String(t.level)===f));
  const container=document.getElementById('work-list');
  const doneContainer=document.getElementById('work-done-list');
  container.innerHTML='';doneContainer.innerHTML='';
@@ -5043,6 +5221,7 @@ function workCardEl(t){
    '<div class="wc-expand" id="wce-'+t.id+'">'+
     (t.note?'<div class="wc-note">'+hEsc(t.note)+'</div>':'')+
     '<div class="wc-created">创建于 '+new Date(t.created||Date.now()).toLocaleDateString('zh-CN')+'</div>'+
+    (t.repeat&&t.repeat!=='none'?'<div class="wc-next">🔁 下次出现：'+fmtNextDue(t.nextDue||nextCycleDue(t,Date.now()))+'</div>':'')+
     (workShowHist&&t.repeat&&t.repeat!=='none'?historyHtml(t):'')+
     '<div class="wc-acts">'+
      (t.done?'':'<button class="wc-act done-btn" onclick="event.stopPropagation();completeTask(\''+t.id+'\')">标记完成</button>')+
@@ -5222,12 +5401,15 @@ function completeTask(id){
  const now=Date.now();
  t.done=true;t.doneTime=now;
  if(t.repeat&&t.repeat!=='none'){
-  t.archived=true;
+  t.archived=false; // 归入"已完成"，不再隐藏
+  const nxt=nextCycleDue(t,now);
+  t.nextDue=nxt; // 详情页显示"下次出现"
   const sid=t.seriesId||uid();t.seriesId=sid;
   const rc=(t.repeatCount||0)+1;
-  getTasks().push({id:uid(),name:t.name,level:t.level,due:advanceDate(t.due,t.repeat),contacts:(t.contacts||[]).slice(),note:t.note,created:now,done:false,doneTime:0,repeat:t.repeat,seriesId:sid,repeatCount:rc});
+  // 下一个周期实例：due=下次出现时间（本周不再出现，下周/下月才进入待处理）
+  getTasks().push({id:uid(),name:t.name,level:t.level,due:nxt,contacts:(t.contacts||[]).slice(),note:t.note,created:now,done:false,doneTime:0,repeat:t.repeat,seriesId:sid,repeatCount:rc,fromDone:now});
   setTasks(getTasks());
-  shinPop('dance','搞定一次！但小新提醒你：下个已经在路上了，嘿嘿～');
+  shinPop('dance','搞定一次！下次出现在 '+fmtNextDue(nxt)+'，小新已经帮你排好啦～');
   if(rc>=3)setTimeout(function(){shinPop('stars','你已经连续搞定 '+rc+' 次「'+t.name+'」了，比风间还靠谱！',3200);},2600);
  }else{
   setTasks(getTasks());
@@ -5238,7 +5420,7 @@ function completeTask(id){
 }
 function historyHtml(t){
  if(!t.seriesId)return '';
- const hist=getTasks().filter(function(x){return x.seriesId===t.seriesId&&x.archived&&x.id!==t.id;}).sort(function(a,b){return (b.doneTime||0)-(a.doneTime||0);}).slice(0,3);
+ const hist=getTasks().filter(function(x){return x.seriesId===t.seriesId&&(x.archived||x.done)&&x.id!==t.id;}).sort(function(a,b){return (b.doneTime||0)-(a.doneTime||0);}).slice(0,3);
  if(!hist.length)return '';
  let h='<div class="wc-hist"><div class="wc-hist-t">最近完成记录（别高兴太早，下个已经来了）</div>';
  hist.forEach(function(x){h+='<div class="wc-hist-item">'+new Date(x.doneTime).toLocaleDateString('zh-CN')+' 已完成</div>';});
@@ -5461,31 +5643,24 @@ function _slimValue(k,val,cap){
   return val;
 }
 
+// 收集本地白名单数据（全量，作为上传合并基底）。返回字符串包 {key: jsonString}
 function collectSyncData(){
- var pkg={_ts:new Date().toISOString(),_v:31}, skipped=[], total=0, changed=0, unchanged=0;
+ var pkg={_ts:new Date().toISOString(),_v:32}, total=0, changed=0, skipped=[];
  var whitelistKeys=Object.keys(SYNC_WHITELIST);
- // 遍历白名单键
  for(var wi=0;wi<whitelistKeys.length;wi++){
   var k=whitelistKeys[wi];
   var full=PREFIX+k;
   var val=localStorage.getItem(full);
   if(!val)continue;
   var rule=SYNC_WHITELIST[k];
-  // 瘦身
   var slim=_slimValue(k,val,rule.cap||0);
-  if(slim===null){skipped.push(k+'('+Math.round(val.length/1024)+'KB>10KB)');continue;}
-  // 增量检测
-  var h=_hashKey(k,slim);
-  if(_lastSyncHash[k]===h){unchanged++;continue;}
+  if(slim===null){skipped.push(k);continue;}
   pkg[k]=slim; total+=slim.length; changed++;
-  _lastSyncHash[k]=h;
-  // 总量保护
   if(total>SYNC_MAX_TOTAL){
    pkg['_truncated']='总量已达 '+Math.round(total/1024)+'KB 上限，剩余键已跳过';
    break;
   }
  }
- // 记录被跳过的键（不在白名单中的 wb_ 键）
  var otherSkipped=[];
  for(var i=0;i<localStorage.length;i++){
   var full=localStorage.key(i);
@@ -5499,8 +5674,7 @@ function collectSyncData(){
  if(skipped.length)pkg['_skipped']=skipped;
  pkg['_size']=total;
  pkg['_changed']=changed;
- pkg['_unchanged']=unchanged;
- console.log('[sync v31] payload:', Math.round(total/1024)+'KB','changed:',changed,'unchanged:',unchanged,'skipped:',skipped.join(',')||'(none)','other:',otherSkipped.length||'none');
+ console.log('[sync v32] payload:', Math.round(total/1024)+'KB','changed:',changed,'skipped:',skipped.join(',')||'(none)','other:',otherSkipped.length||'none');
  return pkg;
 }
 function supaSchedule(k){
@@ -5538,106 +5712,125 @@ function supaFetch(url,opts){
  });
 }
 // 带重试的推送（v32: 先删旧行 → 再插新数据，避免 upsert 大旧数据超时）
+// ============ 合并 / 版本辅助（核心修复：以时间戳较新者为准 + 并集不丢记录） ============
+function _stripMeta(pkg){ var o={}; Object.keys(pkg||{}).forEach(function(k){ if(k.charAt(0)!=='_')o[k]=pkg[k]; }); return o; }
+function _parsePkg(pkg){ var o={}; Object.keys(pkg||{}).forEach(function(k){ if(k.charAt(0)==='_')return; var v=pkg[k]; if(typeof v==='string'){ try{v=JSON.parse(v);}catch(e){} } o[k]=v; }); return o; }
+function _localPkgFull(){ return _parsePkg(collectSyncData()); }
+function _stringifyPkg(obj){ var o={}; Object.keys(obj||{}).forEach(function(k){ if(k.charAt(0)==='_')return; try{o[k]=JSON.stringify(obj[k]);}catch(e){o[k]=String(obj[k]);} }); return o; }
+function _parseLocal(){ var o={}; Object.keys(SYNC_WHITELIST).forEach(function(k){ var raw=localStorage.getItem(PREFIX+k); if(raw==null)return; var v=raw; try{v=JSON.parse(raw);}catch(e){} o[k]=v; }); return o; }
+function _recTs(o){ if(!o||typeof o!=='object')return 0; var t=o.ts||o.updatedAt||o._ts||o.t||o.time||o.created||o.doneTime||o.completedAt||0; return Number(t)||0; }
+function _mergeArrays(a,b){
+ var map={}, order=[];
+ (a||[]).forEach(function(x){ if(x&&x.id!=null){ if(!(x.id in map))order.push(x.id); map[x.id]=x; } else { var rk='_r'+(order.length); order.push(rk); map[rk]=x; } });
+ (b||[]).forEach(function(x){
+   if(!x||x.id==null){ var rk2='_r'+(order.length); order.push(rk2); map[rk2]=x; return; }
+   if(x.id in map){ var ex=map[x.id]; var ta=_recTs(x), tb=_recTs(ex); map[x.id]=(ta&&tb)?(ta>=tb?x:ex):(ta?x:(tb?ex:x)); }
+   else { order.push(x.id); map[x.id]=x; }
+ });
+ return order.map(function(k){return map[k];});
+}
+function _mergeValues(base,incoming,incomingWins){
+ if(Array.isArray(base)&&Array.isArray(incoming)) return _mergeArrays(base,incoming);
+ if(base&&typeof base==='object'&&incoming&&typeof incoming==='object'){
+   var out=Object.assign({},base);
+   Object.keys(incoming).forEach(function(k){ out[k]=_mergeValues(out[k],incoming[k],incomingWins); });
+   return out;
+ }
+ if(incoming===undefined) return base;
+ if(base===undefined) return incoming;
+ return incomingWins?incoming:base;
+}
+function _supaGetRemote(cfg){
+ var base=cfg.url.replace(/\/$/,'');
+ return supaFetch(base+'/rest/v1/wb_sync?sync_id=eq.'+encodeURIComponent(cfg.id)+'&select=data,updated_at',{headers:{'apikey':cfg.key,'Authorization':'Bearer '+cfg.key},timeout:15000}).then(function(r){
+   if(!r.ok)throw new Error('读取失败('+r.status+')');
+   return r.json();
+ }).then(function(arr){
+   if(!arr||!arr.length)return null;
+   var row=arr[0]; var raw=row.data; var data=(raw&&typeof raw==='object')?raw:{};
+   return {data:_parsePkg(_stripMeta(data)), ts:new Date(row.updated_at).getTime()||0};
+ });
+}
+function _verShort(v){ if(!v)return '—'; var s=String(v); return s.slice(-5); }
+function _writeMerged(mergedObj){
+ Object.keys(mergedObj).forEach(function(k){
+   if(k.charAt(0)==='_')return;
+   var v=mergedObj[k];
+   try{ localStorage.setItem(PREFIX+k, JSON.stringify(v)); }catch(e){ try{localStorage.setItem(PREFIX+k, String(v));}catch(e2){} }
+ });
+}
+function _pkgChanged(localPkg, mergedPkg){
+ var lk=_stringifyPkg(localPkg), mk=_stringifyPkg(mergedPkg);
+ var keys={}; Object.keys(lk).forEach(function(k){keys[k]=1;}); Object.keys(mk).forEach(function(k){keys[k]=1;});
+ return Object.keys(keys).some(function(k){ return lk[k]!==mk[k]; });
+}
+// ============ 推送（上传云端：本机优先 + 数组按 id 取较新，保证不丢任何记录） ============
 async function supaPush(retryCount){
  const cfg=getSyncCfg(); if(!cfg.on||!cfg.url||!cfg.key||!cfg.id)return;
  var retries=typeof retryCount==='number'?retryCount:1;
- var base=cfg.url.replace(/\/$/,'');
  try{
-  // 1. 先静默拉取远程最新数据（用于合并）
-  var remoteData=null;
-  try{
-   var pr=await supaFetch(base+'/rest/v1/wb_sync?sync_id=eq.'+encodeURIComponent(cfg.id)+'&select=data',{headers:{'apikey':cfg.key,'Authorization':'Bearer '+cfg.key},timeout:15000});
-   if(pr.ok){var pa=await pr.json();if(pa&&pa.length&&pa[0].data)remoteData=pa[0].data;}
-  }catch(ef){console.log('[sync pull-merge] 拉取合并失败，使用本地全量',ef.message);}
-
-  // 2. 收集本地数据（白名单 + 截断 + 封顶）
-  var pkg=collectSyncData();
-  var ts=pkg._ts;
-
-  // 3. 合并：远程有但本地被跳过的键，保留远程值（v32.3: 类型守卫防非对象崩溃）
-  if(remoteData && typeof remoteData === 'object'){
-   Object.keys(remoteData).forEach(function(k){
-    if(k.charAt(0)==='_'||!pkg[k])pkg[k]=remoteData[k];
-   });
-  }
-
-  var bodyStr=JSON.stringify({sync_id:cfg.id,data:pkg,updated_at:ts});
+  // 1. 拉取云端现有数据作为合并基底（失败也不覆盖清空，仅上传本机全量）
+  var remote=null;
+  try{ remote=await _supaGetRemote(cfg); }catch(e){ remote=null; console.warn('[sync push] 拉取合并源失败，仅上传本机全量：',e.message); }
+  // 2. 本机全量（字符串包→JS）
+  var local=_localPkgFull();
+  // 3. 合并：本机编辑优先（incomingWins=false），数组按 id 取较新 —— 并集，不丢记录
+  var merged= remote ? _mergeValues(local, remote.data, false) : local;
+  var ts=Date.now();
+  var bodyStr=JSON.stringify({sync_id:cfg.id,data:_stringifyPkg(merged),updated_at:new Date(ts).toISOString()});
   var kb=Math.round(bodyStr.length/1024);
-  console.log('[sync push v32] payload:',kb+'KB','changed:',pkg._changed,'strategy:delete+insert');
-
-  // 4. v32 关键改进：先删除旧行（避免 upsert 大旧数据导致 statement timeout）
-  try{
-   var delHdrs={"apikey":cfg.key,"Authorization":"Bearer "+cfg.key};
-   var delRes=await supaFetch(base+"/rest/v1/wb_sync?sync_id=eq."+encodeURIComponent(cfg.id),{method:"DELETE",mode:"cors",headers:delHdrs,timeout:10000});
-   console.log('[sync v32] 删除旧行:',delRes.status);
-  }catch(delErr){
-   console.warn('[sync v32] 删除旧行失败（可能不存在）',delErr.message);
-   // 不影响继续——如果行不存在，INSERT 照常工作
-  }
-
-  // 5. 插入新数据（干净的 INSERT，不依赖旧行大小）
-  var r=await supaFetch(base+'/rest/v1/wb_sync',{method:'POST',mode:'cors',headers:{'apikey':cfg.key,'Authorization':'Bearer '+cfg.key,'Content-Type':'application/json','Prefer':'return=minimal'},body:bodyStr,timeout:20000});
+  // 4. 先删旧行再插（避免 upsert 大旧数据超时）
+  try{ await supaFetch(cfg.url.replace(/\/$/,'')+'/rest/v1/wb_sync?sync_id=eq.'+encodeURIComponent(cfg.id),{method:'DELETE',mode:'cors',headers:{'apikey':cfg.key,'Authorization':'Bearer '+cfg.key},timeout:10000}); }catch(e){}
+  // 5. 插入新数据
+  var r=await supaFetch(cfg.url.replace(/\/$/,'')+'/rest/v1/wb_sync',{method:'POST',mode:'cors',headers:{'apikey':cfg.key,'Authorization':'Bearer '+cfg.key,'Content-Type':'application/json','Prefer':'return=minimal'},body:bodyStr,timeout:20000});
   if(!r.ok){var t=await r.text().catch(function(){return'';});throw new Error('上传失败('+r.status+')'+(t?' '+t.slice(0,120):''));}
-  DB.set('sync_lastpush',ts);
-  DB.set('sync_lastpull',Date.now()); // 与 supaPull 的 remoteTs(毫秒) 保持一致，确保"已最新则跳过"保护生效
-  DB.set('sync_lastpush_device',supaDevice());
-  DB.set('sync_last_action','上传');
-  DB.set('sync_lastpush_at',Date.now());
-  var detail='('+kb+'KB';
-  if(pkg._changed)detail+=' · '+pkg._changed+'项变更';
-  if(pkg._not_synced&&pkg._not_synced.length)detail+=' · '+pkg._not_synced.length+'项未同步('+pkg._not_synced.join(',')+')';
-  detail+=')';
-  if(_supaManual)toast('已推送到服务器 ✓ '+detail);
+  DB.set('sync_lastpush',ts); DB.set('sync_lastpull',ts);
+  DB.set('sync_cloud_ver',ts); DB.set('sync_local_ver',ts);
+  DB.set('sync_lastpush_status',r.status); DB.set('sync_lastpush_at',ts); DB.set('sync_last_action','上传'); DB.set('sync_lastpush_device',supaDevice());
+  console.log('[sync push] 状态码='+r.status+' 写入时间戳='+ts+' ('+new Date(ts).toISOString()+') 体积='+kb+'KB 版本='+_verShort(ts));
+  if(_supaManual)toast('已推送到服务器 ✓（'+r.status+' · '+kb+'KB · 云端版本 '+_verShort(ts)+'）');
   setCloudState('latest');
  }catch(e){
   var m=e.message||'';
-  // 超时类错误自动重试 1 次
   if(retries>0&&(m.indexOf('超时')>=0||m.indexOf('57014')>=0||m.indexOf('statement timeout')>=0||m.indexOf('Failed to fetch')>=0)){
    console.log('[sync push] 超时，2秒后重试…('+retries+'次剩余)');
    return new Promise(function(res){setTimeout(function(){res(supaPush(retries-1));},2000);});
   }
+  DB.set('sync_last_error', m);
   if(_supaManual)toast('推送失败：'+supaFriendlyError(m));
+  setCloudState('error');
  }
 }
 async function supaPull(silent){
  const cfg=getSyncCfg(); if(!cfg.on||!cfg.url||!cfg.key||!cfg.id){if(!silent)toast('先填好 Supabase 配置');return;}
  try{
   setCloudState('sync');
-  var r=await supaFetch(cfg.url.replace(/\/$/,'')+'/rest/v1/wb_sync?sync_id=eq.'+encodeURIComponent(cfg.id)+'&select=sync_id,data,updated_at',{mode:'cors',headers:{'apikey':cfg.key,'Authorization':'Bearer '+cfg.key},timeout:20000});
-  if(!r.ok){var t=await r.text().catch(function(){return'';});throw new Error('读取失败('+r.status+')'+(t?' '+t.slice(0,120):''));}
-  var arr=await r.json();
-  if(!arr||!arr.length){ if(!silent)toast('服务器还没有数据，正在推送…'); await supaPush(); return; }
-  var row=arr[0];
-  // v32.3: 确保 remote 是对象，防止 data 为字符串/非对象时 Object.keys 崩溃
-  var raw=row.data;
-  var remote=(raw && typeof raw === 'object') ? raw : {};
-  var remoteTs=new Date(row.updated_at).getTime()||0;
-  var localTs=DB.get('sync_lastpull',0);
-  if(localTs && remoteTs<=localTs){ if(!silent)toast('已经是最新啦'); setCloudState('latest'); return; }
-  // v32.5: 拉取时验证值可安全存储（接受对象/数组/字符串/数字，只拒绝真正的损坏数据）
-  var written=0, skippedBad=0;
-  Object.keys(remote).forEach(function(k){
-   if(k.charAt(0)==='_')return;
-   var v=remote[k];
-   if(typeof v!=='string'||!v){skippedBad++;return;} // 非空字符串才处理
-   // 尝试解析 JSON —— 成功就写入（无论对象、数组、数字、字符串都合法）
-   // 解析失败也不一定是坏数据（可能是纯文本如日期字符串），照样写入
-   localStorage.setItem(PREFIX+k,v);
-   written++;
-  });
-  console.log('[sync pull] 写入',written,'个键，跳过损坏',skippedBad,'个');
-  DB.set('sync_lastpull',remoteTs);
-  DB.set('sync_lastpull_device',supaDevice());
-  DB.set('sync_last_action','下载');
-  DB.set('sync_lastpull_at',Date.now());
-  if(!silent)toast('已从服务器同步 ✓'+(skippedBad?'（跳过'+skippedBad+'项损坏数据）':''));
-  renderSyncBar();
-  // v32.1: 写入后先 normalizeState 修复脏数据，再 reload（防止模块崩溃）
-  try{ migrateData(); normalizeState(); }catch(e){ console.warn('[sync pull] normalize 失败',e); }
-  // 标记本次已拉取并重载，避免 reload 后 5697 的无条件 supaPull 再次触发 reload 造成死循环
-  DB.set('sync_just_pulled',Date.now());
-  setTimeout(function(){location.reload();},400);
- }catch(e){ if(!silent)toast('同步失败：'+supaFriendlyError(e.message)); }
+  var remote=await _supaGetRemote(cfg);
+  if(!remote){ if(!silent)toast('服务器还没有数据，正在推送…'); await supaPush(); return; }
+  var local=_parseLocal();
+  var remoteTs=remote.ts, localTs=DB.get('sync_lastpull',0);
+  // 合并：云端优先（incomingWins=true），数组按 id 取较新 —— 并集，不丢本机记录
+  var merged=_mergeValues(local, remote.data, true);
+  var changed=_pkgChanged(local, merged);
+  console.log('[sync pull] 云端版本='+_verShort(remoteTs)+' 本地版本='+_verShort(localTs)+' 云端较新='+(remoteTs>localTs)+' 有变更='+changed);
+  if(changed){
+   _writeMerged(merged);
+   DB.set('sync_lastpull',remoteTs); DB.set('sync_cloud_ver',remoteTs); DB.set('sync_local_ver',remoteTs);
+   DB.set('sync_lastpull_device',supaDevice()); DB.set('sync_last_action','下载'); DB.set('sync_lastpull_at',Date.now());
+   if(!silent)toast('已从服务器同步 ✓（云端版本 '+_verShort(remoteTs)+'）');
+   try{ migrateData(); normalizeState(); }catch(e){ console.warn('[sync pull] normalize 失败',e); }
+   DB.set('sync_just_pulled',Date.now());
+   setTimeout(function(){location.reload();},400);
+  }else{
+   DB.set('sync_lastpull',remoteTs); DB.set('sync_cloud_ver',remoteTs);
+   if(!silent)toast('已经是最新啦（云端 '+_verShort(remoteTs)+'）');
+   setCloudState('latest');
+  }
+ }catch(e){
+  DB.set('sync_last_error', e.message);
+  if(!silent)toast('同步失败：'+supaFriendlyError(e.message));
+  setCloudState('error');
+ }
 }
 function supaToggleOn(){
  var url=(document.getElementById('sync-url')?.value||'').trim();
@@ -5680,16 +5873,19 @@ function renderSyncBar(){
  var el=document.getElementById('sync-bar'); if(!el)return;
  if(!DB.get('sync_on',false)){ el.style.display='none'; return; }
  el.style.display='flex';
+ var ver='云端 v'+_verShort(DB.get('sync_cloud_ver',0))+' / 本地 v'+_verShort(DB.get('sync_local_ver',0));
+ var lastAt=DB.get('sync_lastpull_at',DB.get('sync_lastpush_at',0));
+ var ago= lastAt? ' · 上次同步：'+fmtAgo(lastAt) : '';
  var html='';
  if(_cloudState==='checking') html='<span class="sb-dot checking"></span><span class="sb-txt">正在检查云端…</span>';
- else if(_cloudState==='latest') html='<span class="sb-dot on"></span><span class="sb-txt">已是最新</span><span class="sb-time">'+fmtAgo(DB.get('sync_lastpull_at',0))+'</span>';
- else if(_cloudState==='updates') html='<span class="sb-dot warn"></span><span class="sb-txt">有 '+_cloudCount+' 条云端更新，下拉同步</span>';
+ else if(_cloudState==='latest') html='<span class="sb-dot on"></span><span class="sb-txt">已是最新</span><span class="sb-ver">'+ver+ago+'</span>';
+ else if(_cloudState==='updates') html='<span class="sb-dot warn"></span><span class="sb-txt">有 '+_cloudCount+' 条云端更新，下拉同步</span><span class="sb-ver">'+ver+'</span>';
  else if(_cloudState==='pulling') html='<span class="sb-dot"></span><span class="sb-txt">下拉以同步…</span>';
  else if(_cloudState==='pullrelease') html='<span class="sb-dot warn"></span><span class="sb-txt">松开立即同步</span>';
  else if(_cloudState==='sync') html='<span class="sb-dot checking"></span><span class="sb-txt">正在同步…</span>';
- else if(_cloudState==='error') html='<span class="sb-dot err"></span><span class="sb-txt">云端状态获取失败，点击重试</span>';
- else if(_cloudState==='empty') html='<span class="sb-dot on"></span><span class="sb-txt">云端暂无数据</span>';
- else html='<span class="sb-dot on"></span><span class="sb-txt">已是最新</span>';
+ else if(_cloudState==='error') html='<span class="sb-dot err"></span><span class="sb-txt">同步失败：'+supaFriendlyError(DB.get('sync_last_error','未知错误')).slice(0,36)+'</span><span class="sb-ver">点击重试</span>';
+ else if(_cloudState==='empty') html='<span class="sb-dot on"></span><span class="sb-txt">云端暂无数据</span><span class="sb-ver">'+ver+'</span>';
+ else html='<span class="sb-dot on"></span><span class="sb-txt">已是最新</span><span class="sb-ver">'+ver+ago+'</span>';
  el.innerHTML=html;
 }
 function setCloudState(s,c){ _cloudState=s; if(typeof c==='number')_cloudCount=c; renderSyncBar(); }
@@ -5699,7 +5895,8 @@ function doPull(){
  setCloudState('sync'); supaPull(false);
 }
 function doPullFromBanner(){
- if(_cloudState==='updates'||_cloudState==='error'||_cloudState==='empty'){ doPull(); }
+ if(_cloudState==='error'){ supaCheckStatus(); }
+ else if(_cloudState==='updates'||_cloudState==='empty'){ doPull(); }
  else { supaCheckStatus(); }
 }
 function countRemoteDiff(remote){
@@ -5720,21 +5917,13 @@ async function supaCheckStatus(){
  if((Date.now()-(DB.get('sync_just_pulled',0)||0))<60000){ setCloudState('latest'); return; }
  setCloudState('checking');
  try{
-  var base=cfg.url.replace(/\/$/,'');
-  var r=await supaFetch(base+'/rest/v1/wb_sync?sync_id=eq.'+encodeURIComponent(cfg.id)+'&select=sync_id,updated_at',{headers:{'apikey':cfg.key,'Authorization':'Bearer '+cfg.key},timeout:15000});
-  if(!r.ok){ setCloudState('error'); return; }
-  var arr=await r.json();
-  if(!arr||!arr.length){ setCloudState('empty'); return; }
-  var remoteTs=new Date(arr[0].updated_at).getTime()||0;
+  var remote=await _supaGetRemote(cfg);
+  if(!remote){ setCloudState('empty'); return; }
+  DB.set('sync_cloud_ver',remote.ts);
   var localTs=DB.get('sync_lastpull',0);
-  if(localTs && remoteTs<=localTs){ setCloudState('latest'); return; }
-  // 有更新 → 取全量计 diff（仅读取，不写入本地）
-  var pr=await supaFetch(base+'/rest/v1/wb_sync?sync_id=eq.'+encodeURIComponent(cfg.id)+'&select=data',{headers:{'apikey':cfg.key,'Authorization':'Bearer '+cfg.key},timeout:15000});
-  if(!pr.ok){ setCloudState('error'); return; }
-  var pa=await pr.json();
-  var remote=(pa&&pa.length&&pa[0].data&&typeof pa[0].data==='object')?pa[0].data:{};
-  setCloudState('updates',countRemoteDiff(remote));
- }catch(e){ setCloudState('error'); }
+  if(localTs && remote.ts<=localTs){ setCloudState('latest'); return; }
+  setCloudState('updates',countRemoteDiff(_stringifyPkg(remote.data)));
+ }catch(e){ DB.set('sync_last_error', e.message); setCloudState('error'); }
 }
 function supaUpload(){ var su=(document.getElementById('sync-url')?.value||'').trim(); var sk=(document.getElementById('sync-key')?.value||'').trim(); var si=(document.getElementById('sync-id')?.value||'').trim(); if(su)DB.set('sync_url',su); if(sk)DB.set('sync_key',sk); if(si)DB.set('sync_id',si); var cfg=getSyncCfg(); if(!cfg.url||!cfg.key||!cfg.id){toast('先填好 Supabase 配置');return;} _supaManual=true; toast('正在上传…'); supaPush().finally(function(){_supaManual=false;}); }
 function supaDownload(){ var cfg=getSyncCfg(); if(!cfg.url||!cfg.key||!cfg.id){toast('先填好 Supabase 配置');return;} DB.set('sync_lastpull',0); _supaManual=true; toast('正在下载…'); supaPull(false).finally(function(){_supaManual=false;}); }
