@@ -4366,7 +4366,7 @@ function saveMedia(id){
   if(rec){
    rec.title=title;rec.type=type;rec.genres=genres;rec.rating=rating;rec.tags=tags;rec.review=review;rec.status=status;rec.cover=cover;rec.craving=craving;
    if((status==='done'||status==='doing')&&!rec.date)rec.date=todayStr();
-   if(status==='done'&&!rec.ts)rec.ts=Date.now();
+   rec.ts=Date.now();/* v33 编辑即刷新时间戳，保证同步合并能判新旧，避免整条被旧版本覆盖丢字段 */
   }
  }else{
   state.media.push({id:uid(),title:title,type:type,genres:genres,rating:rating,tags:tags,review:review,status:status,cover:cover,craving:craving,date:(status!=='want'?todayStr():''),ts:Date.now(),linkExplore:window._pendingLinkExplore||'',linkRecord:''});
@@ -4737,7 +4737,7 @@ function openSettings(){
   '<button class="btn-primary" onclick="saveSettings()">保存设置</button>'+
  '<div class="sec-title mt12"><div class="left" style="color:var(--hab)">报告</div></div><button class="btn-ghost" onclick="generateWeeklyReport()" style="width:100%;margin-bottom:8px">春日部新闻报（周报）</button><button class="btn-ghost" onclick="generateMonthlyReport()" style="width:100%;margin-bottom:8px">机智可爱田财政赤字报告（月报）</button>'+
  '<div class="sec-title"><div class="left" style="color:var(--expense)">数据管理</div></div><button class="btn-ghost" onclick="clearDemoData()" style="width:100%;margin-bottom:8px">清空示例数据</button><button class="btn-ghost" onclick="clearAllData()" style="width:100%;color:var(--expense);border-color:var(--expense)">清空所有数据</button><div id="backup-history"></div>'+
- '<div class="sec-title"><div class="left" style="color:#3B82C4">数据同步（连 Supabase 服务器 · 自动同步）</div><span style="font-size:10px;background:#E60012;color:#fff;padding:2px 8px;border-radius:6px;font-weight:700">v32.5</span></div>'
+ '<div class="sec-title"><div class="left" style="color:#3B82C4">数据同步（连 Supabase 服务器 · 自动同步）</div><span style="font-size:10px;background:#E60012;color:#fff;padding:2px 8px;border-radius:6px;font-weight:700">v33</span></div>'
 +'<div class="card-tight card mb8" style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:13px">连服务器自动同步（手机电脑共享）</span><button class="btn-ghost" id="supa-on-btn" onclick="supaToggleOn()" style="font-size:12px;padding:6px 14px;min-height:34px">'+(DB.get('sync_on',false)?'已开启':'已关闭')+'</button></div>'
 +'<div class="form-group"><label class="form-label">Supabase 项目 URL</label><input type="text" id="sync-url" value="'+hEsc(DB.get('sync_url','https://zmlkhnhjqcpzhywrgtiw.supabase.co'))+'" placeholder="https://xxxx.supabase.co"></div>'
 +'<div class="form-group"><label class="form-label">anon / public key</label><input type="text" id="sync-key" value="'+hEsc(DB.get('sync_key','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InptbGtobmhqcWNwemh5d3JndGl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYxMjY2NjcsImV4cCI6MjEwMTcwMjY2N30.hZnlONauB0y20wMEF7OG5kRn2uR2PCvcVEfrAE9FoVI'))+'" placeholder="eyJhbGciOi... 或 sb_publishable_..."></div>'
@@ -5716,7 +5716,7 @@ function renderTodayIfHome(){if(state.tab==='home')renderToday();}
 var supaTimer=null, _supaManual=false, _syncDirty=false, _cloudState='checking', _cloudCount=0;
 function getSyncCfg(){return{url:DB.get('sync_url',''),key:DB.get('sync_key',''),id:DB.get('sync_id',''),on:DB.get('sync_on',false)};}
 
-// v32.5: 完整白名单——包含所有 state 键（小标量键全量同步，大数组键截断）
+// v33: 完整白名单——包含所有 state 键（小标量键全量同步，大数组键截断）。media 同步期剥离封面 base64，cap 提到500
 var SYNC_WHITELIST={
   // === 核心数据（必须同步） ===
   accounts:{cap:0},          // 账户配置（小）
@@ -5737,7 +5737,7 @@ var SYNC_WHITELIST={
   workProjects:{cap:100},    // 工作项目（截断）
   workRecords:{cap:200},     // 工作记录（截断）
   shopping:{cap:100},        // 购物清单（截断）
-  media:{cap:100},           // 相册媒体（截断）
+  media:{cap:500},           // 书影音（核心记录，cap 提到500；封面 base64 不同步，见 collectSyncData 剥离）
   explores:{cap:100},        // 探索记录（截断，v32.5 加回）
   foodLogs:{cap:100},        // 食物日志（截断，v32.5 加回）
   customFoods:{cap:100},     // 自定义食物库（截断，v32.5 加回）
@@ -5799,7 +5799,7 @@ function _slimValue(k,val,cap){
 
 // 收集本地白名单数据（全量，作为上传合并基底）。返回字符串包 {key: jsonString}
 function collectSyncData(){
- var pkg={_ts:new Date().toISOString(),_v:32}, total=0, changed=0, skipped=[];
+ var pkg={_ts:new Date().toISOString(),_v:33}, total=0, changed=0, skipped=[];
  var whitelistKeys=Object.keys(SYNC_WHITELIST);
  for(var wi=0;wi<whitelistKeys.length;wi++){
   var k=whitelistKeys[wi];
@@ -5807,6 +5807,11 @@ function collectSyncData(){
   var val=localStorage.getItem(full);
   if(!val)continue;
   var rule=SYNC_WHITELIST[k];
+  // v33 书影音封面是 base64 大图，单条常超 20KB 会让 _slimValue 整键返回 null（整键不同步）。
+  // 同步时剥离 cover（仅本地展示资源），保证评分/状态/标签等核心数据稳定上传；本机 cover 仍保留，pull 时回填。
+  if(k==='media'){
+    try{ var _ma=JSON.parse(val); if(Array.isArray(_ma)){ for(var _mi=0;_mi<_ma.length;_mi++){ if(_ma[_mi]&&_ma[_mi].cover)_ma[_mi].cover=''; } val=JSON.stringify(_ma); } }catch(e){}
+  }
   var slim=_slimValue(k,val,rule.cap||0);
   if(slim===null){skipped.push(k);continue;}
   pkg[k]=slim; total+=slim.length; changed++;
@@ -5971,6 +5976,11 @@ async function supaPull(silent){
   var remoteTs=remote.ts, localTs=DB.get('sync_lastpull',0);
   // 合并：云端优先（incomingWins=true），数组按 id 取较新 —— 并集，不丢本机记录
   var merged=_mergeValues(local, remote.data, true);
+  // v33 pull 后回填本机封面：云端 media 不含 cover（同步期已剥离），用本机原有 cover 补回，避免封面丢失
+  if(merged.media&&Array.isArray(merged.media)&&local.media&&Array.isArray(local.media)){
+    var _lmc={}; local.media.forEach(function(x){ if(x&&x.id)_lmc[x.id]=x; });
+    merged.media=merged.media.map(function(x){ if(x&&x.id&&_lmc[x.id]&&_lmc[x.id].cover&&!x.cover)x.cover=_lmc[x.id].cover; return x; });
+  }
   var changed=_pkgChanged(local, merged);
   console.log('[sync pull] 云端版本='+_verShort(remoteTs)+' 本地版本='+_verShort(localTs)+' 云端较新='+(remoteTs>localTs)+' 有变更='+changed);
   if(changed){
