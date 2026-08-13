@@ -346,7 +346,8 @@ align-items:center;justify-content:flex-end;font-weight:600}
 
 /* 小红花墙 */
 .flower-wall{display:flex;flex-wrap:wrap;gap:6px;padding:2px 0;max-height:340px;overflow-y:auto}
-.flower-cell{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;background:var(--border2);cursor:pointer;transition:.15s;user-select:none}
+.flower-cell{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;background:var(--border2);cursor:pointer;transition:transform .3s,box-shadow .3s;user-select:none}
+.flower-cell.today{transform:scale(1.25);box-shadow:0 0 0 3px var(--primary);z-index:2}
 .flower-cell.f{background:linear-gradient(135deg,#FF8FA3,#FF5C7A);box-shadow:0 2px 0 #E03E5C}
 .flower-cell.f:active{transform:translate(1px,1px)}
 .flower-cell.dim{background:transparent;cursor:default}
@@ -1144,6 +1145,16 @@ border-radius:8px;padding:8px 10px;white-space:pre-wrap;word-break:break-word}
 .wc-created{font-size:10px;color:var(--text3);margin-top:6px}
 .wc-next{font-size:11px;color:var(--acc);font-weight:700;margin-top:4px}
 .wc-acts{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.wc-done-count{display:flex;align-items:center;gap:8px;margin-top:8px}
+.wc-badge{background:var(--income);color:#fff;border-radius:12px;padding:2px 10px;font-size:11px;font-weight:700;white-space:nowrap}
+.wc-stars{font-size:13px;letter-spacing:1px;line-height:1}
+.backup-list{display:flex;flex-direction:column;gap:8px;margin:8px 0}
+.backup-item{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;background:var(--surface);border:2px solid var(--border2);border-radius:12px}
+.bi-info{display:flex;flex-direction:column;gap:2px}
+.bi-date{font-size:11px;font-weight:700;color:var(--text)}
+.bi-meta{font-size:10px;color:var(--text3)}
+.bi-acts{display:flex;gap:6px}
+.bi-acts .btn-ghost{padding:4px 12px;font-size:11px;margin:0}
 .wc-act{flex:1;min-width:64px;min-height:42px;border-radius:10px;font-size:12px;font-weight:800;
 border:2.5px solid var(--ink);background:var(--surface);cursor:pointer;display:flex;align-items:center;
 justify-content:center;gap:4px;box-shadow:2px 2px 0 var(--ink);transition:.15s}
@@ -1358,7 +1369,13 @@ align-items:center;justify-content:center;font-size:13px}
 <div id="rec-list"></div>
 </div>
 <div id="bill-analysis-view" style="display:none">
-<div class="sec-title"><div class="left"><div class="dot" style="background:var(--acc)"></div>📊 本月消费分析</div></div>
+<div class="bill-rangebar">
+<span class="br-btn" id="br-a-week" onclick="setBillRange('week')">本周</span>
+<span class="br-btn" id="br-a-month" onclick="setBillRange('month')">本月</span>
+<span class="br-btn" id="br-a-custom" onclick="showBillCustom()">自定义</span>
+<span class="br-cur" id="br-a-cur"></span>
+</div>
+<div class="sec-title"><div class="left"><div class="dot" style="background:var(--acc)"></div><span id="bill-analysis-title">📊 本月消费分析</span></div></div>
 <div class="card" id="bill-pie"></div>
 <div class="card" id="bill-bar"></div>
 <div class="card" id="bill-top3"></div>
@@ -2266,15 +2283,15 @@ function renderDashboard(){
    <svg class="qi" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>
    <div class="qt">${habitLabel}</div>
   </div>
-  <div class="quick-btn food" onclick="openBuyNow()">
+  <div class="quick-btn food" id="qa-suggest">
    <svg class="qi" viewBox="0 0 24 24" style="stroke:var(--media)"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><path d="M3 6h18M16 10a4 4 0 01-8 0"/></svg>
-   <div class="qt">🛒 买定离手</div>
+   <div class="qt">✨ 智能建议</div>
   </div>
   <div class="quick-btn shop" onclick="openWorkForm()">
    <svg class="qi" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
    <div class="qt">📋 加任务</div>
   </div>`;
- renderRecoCard();
+ renderRecoCard();renderSmartSuggestion();
 }
 
 // 首页 区域1：顶部小新一句话总结
@@ -2679,6 +2696,46 @@ function openBuyNow(){
  document.getElementById('action-sheet-bg').classList.add('show');
 }
 
+// --- 智能建议卡（动态） ---
+function renderSmartSuggestion(){
+ try{
+  const el=document.getElementById('qa-suggest'); if(!el)return;
+  const ts=todayStr();
+  // 1) 今天有未完成的喝水习惯 → 跳习惯页
+  const waterHabit=state.habits.find(function(h){return h.name==='喝水'||h.cat==='water'||((h.unit||'').indexOf('ml')>=0);});
+  let waterUndone=false;
+  if(waterHabit){ const log=state.habitLogs[ts]&&state.habitLogs[ts][waterHabit.id]; waterUndone=!log||log.val<(waterHabit.minTarget||waterHabit.target); }
+  if(waterUndone){
+    el.innerHTML='<svg class="qi" viewBox="0 0 24 24" style="stroke:var(--media)"><path d="M12 2C9 8 6 11 6 15a6 6 0 1012 0c0-4-3-7-6-13z"/></svg><div class="qt">💧 该喝水了</div>';
+    el.onclick=function(){openHabits();};
+    return;
+  }
+  // 2) 逾期任务 → 跳工作页
+  const overdueTasks=getTasks().filter(function(t){return !t.done&&dueInfo(t.due).overdue;});
+  if(overdueTasks.length){
+    el.innerHTML='<svg class="qi" viewBox="0 0 24 24" style="stroke:var(--expense)"><path d="M12 2L2 22h20L12 2z"/><path d="M12 9v5M12 17v.5"/></svg><div class="qt">⚠️ 有 '+overdueTasks.length+' 件事逾期</div>';
+    el.onclick=function(){switchTab('work');};
+    return;
+  }
+  // 3) 连续 7 天无冲动 → 奖励
+  if(state.noImpulseStreak>=7){
+    el.innerHTML='<svg class="qi" viewBox="0 0 24 24" style="stroke:#FF8A65"><path d="M12 2l3 7h7l-5.5 4 2 7L12 17l-6.5 4 2-7L2 9h7z"/></svg><div class="qt">🎉 连续7天无冲动</div>';
+    el.onclick=function(){addPoints(50,'7天无冲动奖励');toast('奖励自己一朵小红花 +50 分');};
+    return;
+  }
+  // 4) 想尝尝清单 → 跳书影音
+  const wantCount=(state.media||[]).filter(function(m){return m.status==='want';}).length;
+  if(wantCount){
+    el.innerHTML='<svg class="qi" viewBox="0 0 24 24" style="stroke:var(--media)"><path d="M4 4h16v16H4z"/><path d="M8 9h8M8 13h5"/></svg><div class="qt">📚 想尝尝清单 '+wantCount+' 部</div>';
+    el.onclick=function(){switchTab('media');};
+    return;
+  }
+  // 5) 默认
+  el.innerHTML='<svg class="qi" viewBox="0 0 24 24" style="stroke:var(--primary)"><path d="M12 2l3 7h7l-5.5 4 2 7L12 17l-6.5 4 2-7L2 9h7z"/></svg><div class="qt">✨ 状态不错，继续保持</div>';
+  el.onclick=function(){};
+ }catch(e){console.warn('[suggest]',e);}
+}
+
 // --- Quick Actions ---
 function doOneThing(){
  const ts=todayStr();
@@ -2873,8 +2930,14 @@ function showBillCustom(){
 }
 const PIE_COLORS=['#E60012','#0072BC','#4CAF50','#FF9800','#6C5CE7','#C2185B','#00897B','#5D4037','#3949AB','#AD1457','#00ACC1','#8D6E63','#43A047','#FB8C00'];
 function _monthExpense(){ const month=todayStr().slice(0,7); return state.records.filter(r=>r.type==='expense'&&r.date.startsWith(month)); }
+function _billRangeExpense(){ return state.records.filter(r=>r.type==='expense'&&_billInRange(r,billRange)); }
+function updateBillAnalysisTitle(){
+ const el=document.getElementById('bill-analysis-title'); if(!el)return;
+ const label=billRange==='week'?'本周':billRange==='month'?'本月':((billCustomStart||'?')+'~'+(billCustomEnd||'?'));
+ el.textContent='📊 '+label+'消费分析';
+}
 function renderBillPie(){
- const exp=_monthExpense();
+ const exp=_billRangeExpense();
  const map={}; exp.forEach(r=>{map[r.cat]=(map[r.cat]||0)+r.amount;});
  const cats=Object.keys(map);
  const el=document.getElementById('bill-pie');
@@ -2898,7 +2961,7 @@ function renderBillPie(){
  el.querySelectorAll('[data-cat]').forEach(function(p){ p.onclick=function(){ setFilter(p.getAttribute('data-cat')); setBillView('list'); }; });
 }
 function renderBillBar(){
- const exp=_monthExpense();
+ const exp=_billRangeExpense();
  const map={}; exp.forEach(r=>{map[r.date]=(map[r.date]||0)+r.amount;});
  const days=Object.keys(map).sort();
  const el=document.getElementById('bill-bar');
@@ -2915,7 +2978,7 @@ function renderBillBar(){
  el.innerHTML='<div style="font-weight:800;margin-bottom:6px">本月每日支出趋势</div>'+svg;
 }
 function renderBillTop3(){
- const exp=_monthExpense();
+ const exp=_billRangeExpense();
  const map={}; exp.forEach(r=>{map[r.cat]=(map[r.cat]||0)+r.amount;});
  const cats=Object.keys(map).sort((a,b)=>map[b]-map[a]).slice(0,3);
  const el=document.getElementById('bill-top3');
@@ -2945,9 +3008,10 @@ function renderAccounting(){
  if(bvl)bvl.classList.toggle('active',billView==='list');
  if(bva)bva.classList.toggle('active',billView==='analysis');
  // 区间按钮高亮
- ['week','month','custom'].forEach(function(r){ const el=document.getElementById('br-'+r); if(el)el.classList.toggle('active',billRange===r); });
+ ['week','month','custom'].forEach(function(r){ ['','a-'].forEach(function(p){ const el=document.getElementById('br-'+p+r); if(el)el.classList.toggle('active',billRange===r); }); });
  var curTxt=''; if(billRange==='week')curTxt='本周'; else if(billRange==='month')curTxt='本月'; else curTxt=(billCustomStart||'?')+' ~ '+(billCustomEnd||'?');
  const curEl=document.getElementById('br-cur'); if(curEl)curEl.textContent=curTxt+(state.settings.filterCat?(' · '+state.settings.filterCat):'');
+ const curEl2=document.getElementById('br-a-cur'); if(curEl2)curEl2.textContent=curTxt+(state.settings.filterCat?(' · '+state.settings.filterCat):'');
  // 时间线（按区间 + 分类 过滤，默认时间倒序）
  const filtered=state.records.filter(function(r){
    if(state.settings.filterCat && r.cat!==state.settings.filterCat)return false;
@@ -2973,7 +3037,7 @@ function renderAccounting(){
  }
  const recEl=document.getElementById('rec-list'); if(recEl)recEl.innerHTML=html;
  // 分析视图
- if(billView==='analysis'){ renderBillPie(); renderBillBar(); renderBillTop3(); }
+ if(billView==='analysis'){ updateBillAnalysisTitle(); renderBillPie(); renderBillBar(); renderBillTop3(); }
 }
 
 function openRecordModal(prefill){
@@ -3394,7 +3458,7 @@ function toggleHabit(id){
   promptHabitNote(id);
  }
  DB.set('habitLogs',state.habitLogs);
- renderHabits();renderToday();checkFlowerMilestones();
+ renderHabits();renderToday();renderFlowerWall();checkFlowerMilestones();
 }
 function adjustHabit(id,delta){
  const ts=habitCheckinDate||todayStr();
@@ -3406,7 +3470,7 @@ function adjustHabit(id,delta){
  const nv=Math.max(0,Math.min(upper,cur+delta*step));
  state.habitLogs[ts][id]={val:nv,note:state.habitLogs[ts][id]?.note||'',t:state.habitLogs[ts][id]?.t||Date.now(),dur:0};
  DB.set('habitLogs',state.habitLogs);
- renderHabits();renderToday();checkFlowerMilestones();
+ renderHabits();renderToday();renderFlowerWall();checkFlowerMilestones();
  if(nv>=h.target&&cur<h.target)promptHabitNote(id);
 }
 function addHabitVal(id,amount){
@@ -3418,7 +3482,7 @@ function addHabitVal(id,amount){
  const nv=Math.min(99999,cur+amount);
  state.habitLogs[ts][id]={val:nv,note:state.habitLogs[ts][id]?.note||'',t:state.habitLogs[ts][id]?.t||Date.now(),dur:0};
  DB.set('habitLogs',state.habitLogs);
- renderHabits();renderToday();checkFlowerMilestones();
+ renderHabits();renderToday();renderFlowerWall();checkFlowerMilestones();
  if(cur<h.target&&nv>=h.target)promptHabitNote(id);
 }
 function addCustomHabit(id){
@@ -3426,6 +3490,7 @@ function addCustomHabit(id){
  const v=parseInt(el?.value)||0;
  if(v<=0){toast('请输入有效的毫升数');return}
  addHabitVal(id,v);
+ renderFlowerWall();
  if(el)el.value='';
 }
 function promptHabitNote(id){
@@ -3497,7 +3562,7 @@ function renderFlowerWall(){
    const ds=dateStr(cursor);
    const future=cursor>today;
    if(future){ html+='<div class="flower-cell dim"></div>'; }
-   else if(dayHasFlower(ds)){ html+='<div class="flower-cell f" onclick="showDayDetail(\''+ds+'\')" title="'+ds+'">🌺</div>'; }
+   else if(dayHasFlower(ds)){ const isToday=ds===todayStr(); html+='<div class="flower-cell f'+(isToday?' today':'')+'" onclick="showDayDetail(\''+ds+'\')" title="'+ds+'">🌺</div>'; }
    else { html+='<div class="flower-cell" onclick="showDayDetail(\''+ds+'\')" title="'+ds+'"></div>'; }
    cursor.setDate(cursor.getDate()+1);
   }
@@ -4121,7 +4186,7 @@ function renderMedia(){
  renderMediaTypeFilter();
  renderMediaList();
  renderMediaWant();
- renderRecoCard();
+ renderRecoCard();renderSmartSuggestion();
 }
 function renderMediaBanner(){
  const all=state.media||[];
@@ -4184,15 +4249,16 @@ function mediaCardHTML(m){
 function renderMediaWant(){
  const el=document.getElementById('media-want');
  if(!el)return;
- const want=(state.media||[]).filter(m=>m.status==='want');
- if(want.length===0){el.innerHTML='<div class="empty-state" style="padding:16px"><p style="font-size:12px">想尝尝清单空空，灵感都去哪了</p></div>';return;}
- el.innerHTML=want.map(function(m,i){
+const want=(state.media||[]).filter(m=>m.status==='want');
+want.sort(function(a,b){var ca=a.craving||0,cb=b.craving||0;if(ca===cb)return (b.ts||0)-(a.ts||0);return cb-ca;});
+if(want.length===0){el.innerHTML='<div class="empty-state" style="padding:16px"><p style="font-size:12px">想尝尝清单空空，灵感都去哪了</p></div>';return;}
+el.innerHTML=want.map(function(m,i){
   const k=MEDIA_KIND[m.type]||MEDIA_KIND.book;
   return '<div class="want-card">'+
    '<div class="wc-rank '+(i===0?'top':'')+'">'+(i+1)+'</div>'+
    '<div class="wc-mid"><div class="wc-name">'+esc(m.title)+'</div>'+
    '<div class="wc-meta">'+k.label+((m.genres&&m.genres.length)?' · '+m.genres.join('/'):'')+'</div>'+
-   '<div class="wc-score">想尝尝</div>'+
+   '<div class="wc-score">想尝尝 · '+'🌟'.repeat(Math.max(1,m.craving||3))+' <span style="font-size:10px;color:var(--text3)">'+(m.craving||3)+'/5</span></div>'+
    '<div class="mc-acts" style="margin-top:6px"><button class="mc-btn pri" onclick="startMedia(\''+m.id+'\')">开始</button><button class="mc-btn" onclick="openMediaModal(\''+m.id+'\')">编辑</button><button class="mc-btn" onclick="delMedia(\''+m.id+'\')">删除</button></div>'+
    '</div></div>';
  }).join('');
@@ -4220,6 +4286,7 @@ function openMediaModal(id,isWant){
  const curGenres=m?m.genres||[]:[];
  const curRating=m?m.rating||0:0;
  const curTags=m?m.tags||[]:[];
+ const curCraving=m?m.craving||3:3;
  const curStatus=m?m.status:(isWant?'want':'done');
  const coverHtml=mediaCoverImg(m||{id:'preview'+Date.now(),cover:''});
  const modal=document.getElementById('modal');
@@ -4234,6 +4301,8 @@ function openMediaModal(id,isWant){
   '<div class="form-group"><label class="form-label">一句话辣评</label><textarea id="md-review" rows="2" placeholder="'+esc(HOT_REVIEWS[0])+'">'+esc(m?m.review:'')+'</textarea></div>'+
   '<div class="form-group"><label class="form-label">私人标签</label><div class="tag-row" id="md-tags">'+MEDIA_TAG_PRESET.map(function(t){return '<div class="tag-chip '+(curTags.indexOf(t)>=0?'active':'')+'" data-tt="'+t+'">'+t+'</div>';}).join('')+'</div><input type="text" id="md-tag-custom" placeholder="自定义标签，回车添加" style="margin-top:8px" onkeydown="if(event.key===\'Enter\')addMediaCustomTag()"></div>'+
   '<div class="form-group"><label class="form-label">状态</label><div class="cat-grid" id="md-status"><div class="cat-btn '+(curStatus==='done'?'active':'')+'" data-st="done"><span>看完/听完</span></div><div class="cat-btn '+(curStatus==='doing'?'active':'')+'" data-st="doing"><span>在读/在听</span></div><div class="cat-btn '+(curStatus==='want'?'active':'')+'" data-st="want"><span>想尝尝</span></div></div></div>'+
+  '<div class="form-group" id="md-craving-group" style="display:'+(curStatus==='want'?'block':'none')+'"><label class="form-label">馋度（有多想尝尝 · 1~5 星）</label><div class="chili-pick" id="md-craving">'+[1,2,3,4,5].map(function(i){return '<div class="chili-opt '+(i<=curCraving?'active':'')+'" data-ci="'+i+'">'+(i<=curCraving?'⭐':'☆')+'</div>';}).join('')+'</div></div>'+
+
   '<button class="btn-primary" onclick="saveMedia(\''+(id||'')+'\')">'+(editing?'保存修改':'添加记录')+'</button>';
  openModal();
  document.querySelectorAll('#md-type .cat-btn').forEach(function(b){b.onclick=function(){document.querySelectorAll('#md-type .cat-btn').forEach(function(x){x.classList.remove('active');x.style.boxShadow=''});b.classList.add('active');b.style.boxShadow='inset 0 0 0 2px '+MEDIA_KIND[b.dataset.t].color;};});
@@ -4244,7 +4313,9 @@ function openMediaModal(id,isWant){
   _mdRating=parseInt(o.dataset.i);
   document.querySelectorAll('#md-rating .chili-opt').forEach(function(x){var xi=parseInt(x.dataset.i);var on=xi<=_mdRating;x.classList.toggle('active',on);x.innerHTML=chiliSVG(on,xi,20)+'<span class="co-l">'+(CHILI_LABEL[xi-1]||'')+'</span>';});
  }});
- document.querySelectorAll('#md-status .cat-btn').forEach(function(b){b.onclick=function(){document.querySelectorAll('#md-status .cat-btn').forEach(function(x){x.classList.remove('active');});b.classList.add('active');};});
+ document.querySelectorAll('#md-status .cat-btn').forEach(function(b){b.onclick=function(){document.querySelectorAll('#md-status .cat-btn').forEach(function(x){x.classList.remove('active');});b.classList.add('active');var g=document.getElementById('md-craving-group');if(g)g.style.display=(b.dataset.st==='want'?'block':'none');};});
+var _mdCraving=curCraving;
+document.querySelectorAll('#md-craving .chili-opt').forEach(function(o){o.onclick=function(){_mdCraving=parseInt(o.dataset.ci);document.querySelectorAll('#md-craving .chili-opt').forEach(function(x){var xi=parseInt(x.dataset.ci);var on=xi<=_mdCraving;x.classList.toggle('active',on);x.textContent=on?'⭐':'☆';});};});
 }
 function mediaCoverUpload(e){
  const f=e.target.files&&e.target.files[0];
@@ -4275,6 +4346,8 @@ function saveMedia(id){
  const type=document.querySelector('#md-type .cat-btn.active')?document.querySelector('#md-type .cat-btn.active').dataset.t:'book';
  const genres=[].slice.call(document.querySelectorAll('#md-genres .tag-chip.active')).map(function(c){return c.dataset.g;});
  const rating=document.querySelectorAll('#md-rating .chili-opt.active').length;
+ const cravingEls=document.querySelectorAll('#md-craving .chili-opt.active');
+ const craving=cravingEls.length||3;
  const tags=[].slice.call(document.querySelectorAll('#md-tags .tag-chip.active')).map(function(c){return c.dataset.tt;});
  const review=document.getElementById('md-review').value.trim();
  const status=document.querySelector('#md-status .cat-btn.active')?document.querySelector('#md-status .cat-btn.active').dataset.st:'done';
@@ -4282,12 +4355,12 @@ function saveMedia(id){
  if(id){
   const rec=state.media.find(function(x){return x.id===id;});
   if(rec){
-   rec.title=title;rec.type=type;rec.genres=genres;rec.rating=rating;rec.tags=tags;rec.review=review;rec.status=status;rec.cover=cover;
+   rec.title=title;rec.type=type;rec.genres=genres;rec.rating=rating;rec.tags=tags;rec.review=review;rec.status=status;rec.cover=cover;rec.craving=craving;
    if((status==='done'||status==='doing')&&!rec.date)rec.date=todayStr();
    if(status==='done'&&!rec.ts)rec.ts=Date.now();
   }
  }else{
-  state.media.push({id:uid(),title:title,type:type,genres:genres,rating:rating,tags:tags,review:review,status:status,cover:cover,date:(status!=='want'?todayStr():''),ts:Date.now(),linkExplore:window._pendingLinkExplore||'',linkRecord:''});
+  state.media.push({id:uid(),title:title,type:type,genres:genres,rating:rating,tags:tags,review:review,status:status,cover:cover,craving:craving,date:(status!=='want'?todayStr():''),ts:Date.now(),linkExplore:window._pendingLinkExplore||'',linkRecord:''});
  }
  DB.set('media',state.media);
  window._pendingLinkExplore='';
@@ -4548,7 +4621,16 @@ function exportData(){
  a.href=url;a.download='机智可爱田工作台_'+todayStr()+'.json';
  a.click();
  URL.revokeObjectURL(url);
+ // 时间机器：本地再存一份副本（最多保留 20 份）
+ try{
+  const bk=PREFIX+'backup_'+Date.now();
+  localStorage.setItem(bk,JSON.stringify(data));
+  const bks=[]; for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i); if(k&&k.indexOf(PREFIX+'backup_')===0)bks.push(k);}
+  bks.sort();
+  while(bks.length>20){ localStorage.removeItem(bks.shift()); }
+ }catch(e){console.warn('[backup]',e);}
  toast('已导出备份文件');
+ if(document.getElementById('backup-history'))renderBackupHistory();
 }
 function importData(e){
  const file=e.target.files[0];
@@ -4599,6 +4681,42 @@ DB.set('media',state.media);DB.set('mediaCache',state.mediaCache);DB.set('anniv'
  toast('导入成功！');
 }
 
+// ============ 历史备份（时间机器） ============
+function renderBackupHistory(){
+ const el=document.getElementById('backup-history'); if(!el)return;
+ const bks=[]; for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i); if(k&&k.indexOf(PREFIX+'backup_')===0)bks.push(k);}
+ bks.sort().reverse();
+ if(bks.length===0){ el.innerHTML='<div class="small" style="margin:8px 0;color:var(--text3)">还没有历史备份。点上方「导出备份」会自动留存一份在这里（最多 20 份）。</div>'; return; }
+ let html='<div class="sec-title mt12"><div class="left" style="color:var(--primary)">🕰️ 历史备份（时间机器）</div></div><div class="backup-list">';
+ bks.forEach(function(k){
+  const raw=localStorage.getItem(k); let date='?',count=0;
+  try{ const d=JSON.parse(raw); date=(d.exportDate||'').replace('T',' ').slice(0,19); count=(d.records||[]).length+(d.habits||[]).length+(d.shopping||[]).length+(d.explores||[]).length+(d.media||[]).length; }catch(e){}
+  html+='<div class="backup-item"><div class="bi-info"><div class="bi-date">📅 '+date+'</div><div class="bi-meta">'+count+' 条记录</div></div><div class="bi-acts"><button class="btn-ghost" onclick="confirmRestoreBackup(\''+k+'\')">恢复</button><button class="btn-ghost" onclick="delBackup(\''+k+'\')">删除</button></div></div>';
+ });
+ html+='</div><button class="btn-ghost" onclick="clearBackups()" style="width:100%;margin-top:8px;color:var(--expense);border-color:var(--expense)">清空所有历史备份</button>';
+ el.innerHTML=html;
+}
+function confirmRestoreBackup(key){
+ confirmBox('恢复历史备份','将用该备份<b>覆盖</b>当前所有数据，确定？',
+  '<div class="cb-row"><button class="btn-ghost" onclick="closeConfirm()">取消</button><button class="btn-primary" onclick="restoreBackup(\''+key+'\')">确认恢复</button></div>');
+}
+function restoreBackup(key){
+ try{
+  const raw=localStorage.getItem(key); if(!raw)throw new Error('备份不存在');
+  const data=JSON.parse(raw);
+  window._importData=data;
+  closeConfirm();
+  doImport();
+  toast('已从历史备份恢复！');
+ }catch(e){ toast('恢复失败：'+e.message); }
+}
+function delBackup(key){ localStorage.removeItem(key); renderBackupHistory(); toast('已删除该备份'); }
+function clearBackups(){
+ const bks=[]; for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i); if(k&&k.indexOf(PREFIX+'backup_')===0)bks.push(k);}
+ bks.forEach(function(k){localStorage.removeItem(k);});
+ renderBackupHistory(); toast('已清空所有历史备份');
+}
+
 // ============ Settings ============
 function openSettings(){
  const m=document.getElementById('modal');
@@ -4609,7 +4727,7 @@ function openSettings(){
  '<div class="sec-title"><div class="left"><div class="dot" style="background:var(--primary)"></div>显示</div></div><div class="card-tight card mb8" style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:13px">隐私模式</span><button class="btn-ghost" onclick="togglePrivacy()" style="font-size:12px;padding:6px 14px;min-height:34px">'+(state.settings.privacyOn?'已开启':'已关闭')+'</button></div><div class="small mt8" style="padding:0 4px">隐私模式：模糊金额数字，点击可查看</div>'+
   '<button class="btn-primary" onclick="saveSettings()">保存设置</button>'+
  '<div class="sec-title mt12"><div class="left" style="color:var(--hab)">报告</div></div><button class="btn-ghost" onclick="generateWeeklyReport()" style="width:100%;margin-bottom:8px">春日部新闻报（周报）</button><button class="btn-ghost" onclick="generateMonthlyReport()" style="width:100%;margin-bottom:8px">机智可爱田财政赤字报告（月报）</button>'+
- '<div class="sec-title"><div class="left" style="color:var(--expense)">数据管理</div></div><button class="btn-ghost" onclick="clearDemoData()" style="width:100%;margin-bottom:8px">清空示例数据</button><button class="btn-ghost" onclick="clearAllData()" style="width:100%;color:var(--expense);border-color:var(--expense)">清空所有数据</button>'+
+ '<div class="sec-title"><div class="left" style="color:var(--expense)">数据管理</div></div><button class="btn-ghost" onclick="clearDemoData()" style="width:100%;margin-bottom:8px">清空示例数据</button><button class="btn-ghost" onclick="clearAllData()" style="width:100%;color:var(--expense);border-color:var(--expense)">清空所有数据</button><div id="backup-history"></div>'+
  '<div class="sec-title"><div class="left" style="color:#3B82C4">数据同步（连 Supabase 服务器 · 自动同步）</div><span style="font-size:10px;background:#E60012;color:#fff;padding:2px 8px;border-radius:6px;font-weight:700">v32.5</span></div>'
 +'<div class="card-tight card mb8" style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:13px">连服务器自动同步（手机电脑共享）</span><button class="btn-ghost" id="supa-on-btn" onclick="supaToggleOn()" style="font-size:12px;padding:6px 14px;min-height:34px">'+(DB.get('sync_on',false)?'已开启':'已关闭')+'</button></div>'
 +'<div class="form-group"><label class="form-label">Supabase 项目 URL</label><input type="text" id="sync-url" value="'+hEsc(DB.get('sync_url','https://zmlkhnhjqcpzhywrgtiw.supabase.co'))+'" placeholder="https://xxxx.supabase.co"></div>'
@@ -4623,6 +4741,7 @@ function openSettings(){
 +'<div class="small mt8" style="padding:0 4px"><b>怎么用：</b>① Supabase 建表 wb_sync；② 填项目 URL + anon key；③ 点「生成」同步ID，各设备填<b>相同 ID</b>即共享。数据存你自己 Supabase 项目（需 VPN 才能连）。</div>'
 +'<div class="sec-title"><div class="left">关于</div></div><div class="card-tight card small"><div class="bold mb8" style="font-size:13px;color:var(--text)">机智可爱田工作台 · 小新陪你对抗冲动</div><div>用厌恶损失对抗冲动消费，每一笔花销都有代价。</div><div class="mt8">数据存在本地浏览器，关掉页面也不会丢。</div><div class="mt8">记得定期导出备份，换手机时导入就能恢复。</div><div class="mt8">多台设备连 Supabase 服务器自动同步，在设置→数据同步里配置即可共享（需 VPN）。</div><div class="mt8 muted" style="font-size:10px">localStorage key 前缀：wb_life_</div></div>'
  openModal();
+ renderBackupHistory();
 }
 function saveSettings(){
  state.settings.mediaGoal=parseInt(document.getElementById('set-mediagoal')?.value)||4;
@@ -5222,6 +5341,7 @@ function workCardEl(t){
     (t.note?'<div class="wc-note">'+hEsc(t.note)+'</div>':'')+
     '<div class="wc-created">创建于 '+new Date(t.created||Date.now()).toLocaleDateString('zh-CN')+'</div>'+
     (t.repeat&&t.repeat!=='none'?'<div class="wc-next">🔁 下次出现：'+fmtNextDue(t.nextDue||nextCycleDue(t,Date.now()))+'</div>':'')+
+    (t.repeat&&t.repeat!=='none'?'<div class="wc-done-count"><span class="wc-badge">已完成 '+(t.repeatCount||0)+' 次</span><span class="wc-stars">'+(function(){var n=Math.min(5,Math.floor((t.repeatCount||0)/3)),s='';for(var i=0;i<n;i++)s+='✅';return s;})()+'</span></div>':'')+
     (workShowHist&&t.repeat&&t.repeat!=='none'?historyHtml(t):'')+
     '<div class="wc-acts">'+
      (t.done?'':'<button class="wc-act done-btn" onclick="event.stopPropagation();completeTask(\''+t.id+'\')">标记完成</button>')+
