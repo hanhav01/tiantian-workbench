@@ -4383,6 +4383,7 @@ function delMedia(id){
 function confirmDelMedia(id){
  state.media=state.media.filter(function(m){return m.id!==id;});
  DB.set('media',state.media);closeConfirm();
+ addTomb('media',id); // v33 记墓碑，让删除跨设备传播
  if(state.tab==='media')renderMedia();renderToday();checkBackupHint();recommendMedia();
  toast('已删除');
 }
@@ -4737,7 +4738,7 @@ function openSettings(){
   '<button class="btn-primary" onclick="saveSettings()">保存设置</button>'+
  '<div class="sec-title mt12"><div class="left" style="color:var(--hab)">报告</div></div><button class="btn-ghost" onclick="generateWeeklyReport()" style="width:100%;margin-bottom:8px">春日部新闻报（周报）</button><button class="btn-ghost" onclick="generateMonthlyReport()" style="width:100%;margin-bottom:8px">机智可爱田财政赤字报告（月报）</button>'+
  '<div class="sec-title"><div class="left" style="color:var(--expense)">数据管理</div></div><button class="btn-ghost" onclick="clearDemoData()" style="width:100%;margin-bottom:8px">清空示例数据</button><button class="btn-ghost" onclick="clearAllData()" style="width:100%;color:var(--expense);border-color:var(--expense)">清空所有数据</button><div id="backup-history"></div>'+
- '<div class="sec-title"><div class="left" style="color:#3B82C4">数据同步（连 Supabase 服务器 · 自动同步）</div><span style="font-size:10px;background:#E60012;color:#fff;padding:2px 8px;border-radius:6px;font-weight:700">v33</span></div>'
+ '<div class="sec-title"><div class="left" style="color:#3B82C4">数据同步（连 Supabase 服务器 · 自动同步）</div><span style="font-size:10px;background:#E60012;color:#fff;padding:2px 8px;border-radius:6px;font-weight:700">v34</span></div>'
 +'<div class="card-tight card mb8" style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:13px">连服务器自动同步（手机电脑共享）</span><button class="btn-ghost" id="supa-on-btn" onclick="supaToggleOn()" style="font-size:12px;padding:6px 14px;min-height:34px">'+(DB.get('sync_on',false)?'已开启':'已关闭')+'</button></div>'
 +'<div class="form-group"><label class="form-label">Supabase 项目 URL</label><input type="text" id="sync-url" value="'+hEsc(DB.get('sync_url','https://zmlkhnhjqcpzhywrgtiw.supabase.co'))+'" placeholder="https://xxxx.supabase.co"></div>'
 +'<div class="form-group"><label class="form-label">anon / public key</label><input type="text" id="sync-key" value="'+hEsc(DB.get('sync_key','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InptbGtobmhqcWNwemh5d3JndGl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYxMjY2NjcsImV4cCI6MjEwMTcwMjY2N30.hZnlONauB0y20wMEF7OG5kRn2uR2PCvcVEfrAE9FoVI'))+'" placeholder="eyJhbGciOi... 或 sb_publishable_..."></div>'
@@ -5799,7 +5800,7 @@ function _slimValue(k,val,cap){
 
 // 收集本地白名单数据（全量，作为上传合并基底）。返回字符串包 {key: jsonString}
 function collectSyncData(){
- var pkg={_ts:new Date().toISOString(),_v:33}, total=0, changed=0, skipped=[];
+ var pkg={_ts:new Date().toISOString(),_v:34}, total=0, changed=0, skipped=[];
  var whitelistKeys=Object.keys(SYNC_WHITELIST);
  for(var wi=0;wi<whitelistKeys.length;wi++){
   var k=whitelistKeys[wi];
@@ -5833,6 +5834,8 @@ function collectSyncData(){
  if(skipped.length)pkg['_skipped']=skipped;
  pkg['_size']=total;
  pkg['_changed']=changed;
+ // v33 删除墓碑随包上传（墓碑是对象，_parsePkg 会解析；不经过 _slimValue/数组合并）
+ var _tk=DB.get('sync_tombstones',null); if(_tk)pkg['sync_tombstones']=typeof _tk==='string'?_tk:JSON.stringify(_tk);
  console.log('[sync v32] payload:', Math.round(total/1024)+'KB','changed:',changed,'skipped:',skipped.join(',')||'(none)','other:',otherSkipped.length||'none');
  return pkg;
 }
@@ -5921,8 +5924,13 @@ function _writeMerged(mergedObj){
 function _pkgChanged(localPkg, mergedPkg){
  var lk=_stringifyPkg(localPkg), mk=_stringifyPkg(mergedPkg);
  var keys={}; Object.keys(lk).forEach(function(k){keys[k]=1;}); Object.keys(mk).forEach(function(k){keys[k]=1;});
- return Object.keys(keys).some(function(k){ return lk[k]!==mk[k]; });
+ return Object.keys(keys).some(function(k){ if(k==='sync_tombstones')return false; return lk[k]!==mk[k]; });
 }
+// v33 删除墓碑：让"删除"也能跨设备传播（通用，作用于所有数组型白名单键）
+function syncTomb(){ try{ return JSON.parse(DB.get('sync_tombstones','{}'))||{}; }catch(e){ return {}; } }
+function addTomb(key,id){ if(!id)return; var t=syncTomb(); (t[key]=t[key]||[]); if(t[key].indexOf(id)<0)t[key].push(id); DB.set('sync_tombstones',t); }
+function unionTomb(a,b){ var o={}; Object.keys(SYNC_WHITELIST).forEach(function(k){ if(!(SYNC_WHITELIST[k]&&SYNC_WHITELIST[k].cap>0))return; var s=(a&&a[k]||[]).concat(b&&b[k]||[]).filter(Boolean); if(s.length)o[k]=s.filter(function(v,i){return s.indexOf(v)===i;}); }); return o; }
+function applyTombToObj(obj,tomb){ if(!obj||!tomb)return obj; Object.keys(SYNC_WHITELIST).forEach(function(k){ if(!(SYNC_WHITELIST[k]&&SYNC_WHITELIST[k].cap>0))return; if(Array.isArray(obj[k])) obj[k]=obj[k].filter(function(x){ return !(x&&x.id!=null&&(tomb[k]||[]).indexOf(x.id)>=0); }); }); return obj; }
 // ============ 推送（上传云端：本机优先 + 数组按 id 取较新，保证不丢任何记录） ============
 async function supaPush(retryCount){
  const cfg=getSyncCfg(); if(!cfg.on||!cfg.url||!cfg.key||!cfg.id)return;
@@ -5933,8 +5941,16 @@ async function supaPush(retryCount){
   try{ remote=await _supaGetRemote(cfg); }catch(e){ remote=null; console.warn('[sync push] 拉取合并源失败，仅上传本机全量：',e.message); }
   // 2. 本机全量（字符串包→JS）
   var local=_localPkgFull();
+  // v33 墓碑：从合并基底中抽离，单独 union，避免被通用数组合并破坏
+  var _lt=(local.sync_tombstones)||syncTomb();
+  var _rt=(remote&&remote.data&&remote.data.sync_tombstones)||{};
+  delete local.sync_tombstones; if(remote&&remote.data)delete remote.data.sync_tombstones;
   // 3. 合并：本机编辑优先（incomingWins=false），数组按 id 取较新 —— 并集，不丢记录
   var merged= remote ? _mergeValues(local, remote.data, false) : local;
+  // v33 墓碑 union + 过滤已删记录
+  var _tomb=unionTomb(_lt,_rt);
+  applyTombToObj(merged,_tomb);
+  merged.sync_tombstones=_tomb;
   var ts=Date.now();
   var bodyStr=JSON.stringify({sync_id:cfg.id,data:_stringifyPkg(merged),updated_at:new Date(ts).toISOString()});
   var kb=Math.round(bodyStr.length/1024);
@@ -5949,6 +5965,9 @@ async function supaPush(retryCount){
   console.log('[sync push] 状态码='+r.status+' 写入时间戳='+ts+' ('+new Date(ts).toISOString()+') 体积='+kb+'KB 版本='+_verShort(ts));
   if(_supaManual)toast('已推送到服务器 ✓（'+r.status+' · '+kb+'KB · 云端版本 '+_verShort(ts)+'）');
   _clearPending();
+  // v33 写回 union 墓碑，并把云端删掉的记录从本机 localStorage 也清掉（内存 state 留待 reload/渲染刷新）
+  DB.set('sync_tombstones',_tomb);
+  var _lo=_parseLocal(); _lo.sync_tombstones=_tomb; applyTombToObj(_lo,_tomb); _writeMerged(_lo);
   _logSync('upload','success', Object.keys(merged||{}));
   setCloudState('latest');
   return true;
@@ -5973,9 +5992,16 @@ async function supaPull(silent){
   var remote=await _supaGetRemote(cfg);
   if(!remote){ if(!silent)toast('服务器还没有数据，正在推送…'); await supaPush(); return; }
   var local=_parseLocal();
+  var _lt=syncTomb();
+  var _rt=(remote.data&&remote.data.sync_tombstones)||{};
+  if(remote.data)delete remote.data.sync_tombstones; // v33 抽离墓碑，避免被通用对象合并破坏
   var remoteTs=remote.ts, localTs=DB.get('sync_lastpull',0);
   // 合并：云端优先（incomingWins=true），数组按 id 取较新 —— 并集，不丢本机记录
   var merged=_mergeValues(local, remote.data, true);
+  // v33 墓碑 union + 过滤已删记录
+  var _tomb=unionTomb(_lt,_rt);
+  applyTombToObj(merged,_tomb);
+  merged.sync_tombstones=_tomb;
   // v33 pull 后回填本机封面：云端 media 不含 cover（同步期已剥离），用本机原有 cover 补回，避免封面丢失
   if(merged.media&&Array.isArray(merged.media)&&local.media&&Array.isArray(local.media)){
     var _lmc={}; local.media.forEach(function(x){ if(x&&x.id)_lmc[x.id]=x; });
@@ -5994,6 +6020,7 @@ async function supaPull(silent){
    setTimeout(function(){location.reload();},400);
   }else{
    DB.set('sync_lastpull',remoteTs); DB.set('sync_cloud_ver',remoteTs);
+   DB.set('sync_tombstones',_tomb); // v33 即使数据未变也持久化云端墓碑，确保学到远端删除
    if(!silent)toast('已经是最新啦（云端 '+_verShort(remoteTs)+'）');
    _logSync('download','success', []);
    setCloudState('latest');
