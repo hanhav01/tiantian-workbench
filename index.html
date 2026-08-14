@@ -1509,7 +1509,7 @@ align-items:center;justify-content:center;font-size:13px}
 <div class="subpage" id="subpage-habits">
 <div class="subpage-head">
 <button class="sp-back" onclick="closeSubpage('subpage-habits')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg></button>
-<h2>🏆 幼稚园奖状墙</h2>
+<h2>💪 我的习惯</h2>
 <button class="sp-add" onclick="openHabitModal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg></button>
 </div>
 <div class="subpage-body">
@@ -1690,7 +1690,7 @@ align-items:center;justify-content:center;font-size:13px}
 <div class="mine-menu">
 <div class="mine-item" onclick="openHabits()">
 <div class="mi-ic" style="background:#FFE9A8"><svg viewBox="0 0 24 24" fill="none" stroke="#C8930A" stroke-width="2"><path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 01-10 0V4zM7 4H4v2a3 3 0 003 3M17 4h3v2a3 3 0 01-3 3"/></svg></div>
-<div class="mi-tx"><div class="mi-t">🏆 幼稚园奖状墙</div><div class="mi-s" id="mine-habit-sub">今天还没动哦</div></div>
+<div class="mi-tx"><div class="mi-t">💪 我的习惯</div><div class="mi-s" id="mine-habit-sub">今天还没动哦</div></div>
 </div>
 <div class="mine-item" onclick="switchTab('media')">
 <div class="mi-ic" style="background:#E4E1FF"><svg viewBox="0 0 24 24" fill="none" stroke="#5C4BB8" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg></div>
@@ -4080,8 +4080,8 @@ function checkAwards(){
   const next=[];
   state.certificates.forEach(function(c){ if(PERM[c.key]) next.push(c); });
   should.forEach(function(s){ if(PERM[s.key] && !prev[s.key]) next.push({key:s.key,icon:s.icon,title:s.title,desc:s.desc,earnedAt:Date.now()}); });
-  // 今日全勤（每日态）：仅当今天满足且缺失时才出现；已存在但今天不满足则自动移除
-  if(shouldMap['today_all'] && !prev['today_all']) next.push({key:'today_all',icon:shouldMap['today_all'].icon,title:shouldMap['today_all'].title,desc:shouldMap['today_all'].desc,earnedAt:Date.now()});
+  // 今日全勤（每日态）：今天满足就显示（保留已得日期），今天不满足则移除
+  if(shouldMap['today_all']){ const ex=prev['today_all']; next.push({key:'today_all',icon:shouldMap['today_all'].icon,title:shouldMap['today_all'].title,desc:shouldMap['today_all'].desc,earnedAt:(ex&&typeof ex.earnedAt==='number')?ex.earnedAt:Date.now()}); }
   state.certificates=next;
   if(state.certificates.length)DB.set('certificates',state.certificates);
  }catch(e){console.warn('[awards]',e);}
@@ -4095,8 +4095,8 @@ function renderCertWall(){
    return;
   }
    el.innerHTML='<div class="cert-grid">'+state.certificates.map(function(c){
-   const d=new Date(c.earnedAt);
-   const ds=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+   let ds='';
+   if(c.earnedAt){ const d=new Date(c.earnedAt); if(!isNaN(d.getTime())) ds=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
    return '<div class="cert-card"><div class="cert-ic">'+c.icon+'</div><div class="cert-title">'+hEsc(c.title)+'</div><div class="cert-desc">'+hEsc(c.desc)+'</div><div class="cert-date">'+ds+'</div></div>';
   }).join('')+'</div>';
  }catch(e){console.warn('[certwall]',e);}
@@ -5060,7 +5060,7 @@ function openSettings(){
   '<button class="btn-primary" onclick="saveSettings()">保存设置</button>'+
  '<div class="sec-title mt12"><div class="left" style="color:var(--hab)">报告</div></div><button class="btn-ghost" onclick="generateWeeklyReport()" style="width:100%;margin-bottom:8px">春日部新闻报（周报）</button><button class="btn-ghost" onclick="generateMonthlyReport()" style="width:100%;margin-bottom:8px">机智可爱田财政赤字报告（月报）</button>'+
  '<div class="sec-title"><div class="left" style="color:var(--expense)">数据管理</div></div><button class="btn-ghost" onclick="clearDemoData()" style="width:100%;margin-bottom:8px">清空示例数据</button><button class="btn-ghost" onclick="clearAllData()" style="width:100%;color:var(--expense);border-color:var(--expense)">清空所有数据</button><div id="backup-history"></div>'+
- '<div class="sec-title"><div class="left" style="color:#3B82C4">数据同步（连 Supabase 服务器 · 自动同步）</div><span style="font-size:10px;background:#E60012;color:#fff;padding:2px 8px;border-radius:6px;font-weight:700">v40</span></div>'
+ '<div class="sec-title"><div class="left" style="color:#3B82C4">数据同步（连 Supabase 服务器 · 自动同步）</div><span style="font-size:10px;background:#E60012;color:#fff;padding:2px 8px;border-radius:6px;font-weight:700">v41</span></div>'
 +'<div class="card-tight card mb8" style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:13px">连服务器自动同步（手机电脑共享）</span><button class="btn-ghost" id="supa-on-btn" onclick="supaToggleOn()" style="font-size:12px;padding:6px 14px;min-height:34px">'+(DB.get('sync_on',false)?'已开启':'已关闭')+'</button></div>'
 +'<div class="form-group"><label class="form-label">Supabase 项目 URL</label><input type="text" id="sync-url" value="'+hEsc(DB.get('sync_url','https://zmlkhnhjqcpzhywrgtiw.supabase.co'))+'" placeholder="https://xxxx.supabase.co"></div>'
 +'<div class="form-group"><label class="form-label">anon / public key</label><input type="text" id="sync-key" value="'+hEsc(DB.get('sync_key','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InptbGtobmhqcWNwemh5d3JndGl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYxMjY2NjcsImV4cCI6MjEwMTcwMjY2N30.hZnlONauB0y20wMEF7OG5kRn2uR2PCvcVEfrAE9FoVI'))+'" placeholder="eyJhbGciOi... 或 sb_publishable_..."></div>'
@@ -6546,7 +6546,7 @@ function _slimValue(k,val,cap){
 
 // 收集本地白名单数据（全量，作为上传合并基底）。返回字符串包 {key: jsonString}
 function collectSyncData(){
- var pkg={_ts:new Date().toISOString(),_v:40}, total=0, changed=0, skipped=[];
+ var pkg={_ts:new Date().toISOString(),_v:41}, total=0, changed=0, skipped=[];
  var whitelistKeys=Object.keys(SYNC_WHITELIST);
  for(var wi=0;wi<whitelistKeys.length;wi++){
   var k=whitelistKeys[wi];
