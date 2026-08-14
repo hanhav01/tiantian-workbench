@@ -1041,7 +1041,7 @@ display:flex;align-items:center;justify-content:space-between;margin-bottom:12px
 .jp-input-row{display:flex;gap:8px;margin-top:10px}
 .jp-input{flex:1;border:1px solid #e0e0e0;border-radius:10px;padding:10px 12px;font-size:14px;background:#fff;color:var(--text)}
 .jp-input:focus{outline:none;border-color:#2E7DD1}
-/* 引导式学习系统（v39） */
+/* 临摹对照板（v40） */
 .jp-tabs{display:flex;gap:6px;margin:12px 0 4px;overflow-x:auto;-webkit-overflow-scrolling:touch}
 .jp-tab{flex:0 0 auto;border:1px solid #e2e8f0;background:#fff;color:#5a6b7a;border-radius:14px;padding:7px 12px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
 .jp-tab.on{background:#2E7DD1;color:#fff;border-color:#2E7DD1}
@@ -1329,7 +1329,7 @@ align-items:center;justify-content:center;font-size:13px}
 .sync-log-item .sl-body{flex:1;min-width:0}
 .sync-log-item .sl-top{font-size:11px;color:#6b7280}
 .sync-log-item .sl-mid{font-size:12px;color:var(--text);font-weight:600;word-break:break-all}
-/* ===== 日语双模式（跟读+跟写）v39 新增样式 ===== */
+/* ===== 日语临摹对照板（v40） ===== */
 .jp-step{font-size:11px;color:var(--text3);margin-bottom:4px;letter-spacing:.2px}
 .jp-five{display:flex;flex-direction:column;gap:8px;margin-top:10px}
 .jp-btn{border:1px solid #d6e0ec;background:#fff;color:#2E7DD1;border-radius:14px;padding:10px 12px;font-size:14px;font-weight:700;cursor:pointer;transition:all .15s}
@@ -1356,6 +1356,25 @@ align-items:center;justify-content:center;font-size:13px}
 .jp-prog-pct{width:34px;flex:0 0 34px;text-align:right;font-size:12px;font-weight:700;color:#5a6b7a}
 .jp-row-lock{opacity:.5}
 .jp-kana.on .jp-kana-ok{font-size:12px}
+/* 临摹对照板（v40） */
+.jp-copy .jp-ref-area{background:#fbfdff;border:1px solid #e3ecf7;border-radius:16px;padding:12px;margin-bottom:12px}
+.jp-ref-title{font-size:12px;color:#5a6b7a;margin-bottom:10px}
+.jp-ref-grid{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+.jp-ref-kana{position:relative;width:64px;height:84px;background:#fff;border:2px solid #e3ecf7;border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:transform .15s ease,border-color .15s ease}
+.jp-ref-kana:active{transform:scale(.96)}
+.jp-ref-cur{border-color:#2E7DD1;box-shadow:0 0 0 3px rgba(46,125,209,.15)}
+.jp-ref-done{background:#EFFaf0;border-color:#7cc56a}
+.jp-ref-big{font-size:32px;font-weight:800;color:var(--text);line-height:1}
+.jp-ref-r{font-size:12px;color:#5a6b7a;margin-top:4px;font-style:italic}
+.jp-ref-mark{position:absolute;top:4px;right:6px;font-size:12px;font-weight:800;color:#2E9E4F}
+.jp-progress-hint{font-size:12px;color:#5a6b7a;margin-top:10px;text-align:center}
+.jp-write-area{background:#fff;border:1px solid #e3ecf7;border-radius:16px;padding:12px}
+.jp-write-canvas{width:100%;height:auto;aspect-ratio:340/280;background:#fffdf8;border:2px solid #e0d8cc;border-radius:14px;touch-action:none;display:block;cursor:crosshair}
+.jp-write-tools{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center}
+.jp-write-tools .btn-ghost{flex:0 0 auto}
+.jp-write-tools .jp-btn{flex:1;min-width:120px}
+.jp-write-hint{font-size:11px;color:var(--text3);margin-top:8px;text-align:center}
+.jp-done-all{text-align:center;font-size:16px;color:#2E9E4F;font-weight:700;padding:20px 10px}
 </style>
 </head>
 <body>
@@ -2072,188 +2091,6 @@ const JP_KANA_ROWS=[
 ];
 const JP_NN={k:'ん',r:'n',tip:'鼻音“嗯”，单独占一拍，不拼元音'};
 // 五十音图笔画数据（简化折线，坐标归一化 0-1，作 Canvas 描摹底稿与覆盖度检测用）
-const STROKE_DATA={
- 'あ':[
-  [[0.20,0.34],[0.55,0.30],[0.66,0.42]],
-  [[0.52,0.22],[0.44,0.42],[0.30,0.58],[0.40,0.76],[0.64,0.80],[0.76,0.68]],
-  [[0.30,0.56],[0.38,0.63],[0.28,0.68],[0.22,0.60],[0.30,0.56]]
- ],
- 'い':[
-  [[0.30,0.30],[0.50,0.55],[0.40,0.80]],
-  [[0.60,0.24],[0.55,0.52],[0.64,0.78]]
- ],
- 'う':[
-  [[0.25,0.40],[0.45,0.34],[0.62,0.42],[0.50,0.56]],
-  [[0.40,0.50],[0.55,0.58],[0.45,0.74],[0.60,0.78]]
- ],
- 'え':[
-  [[0.66,0.28],[0.40,0.42],[0.58,0.50],[0.30,0.62],[0.55,0.70],[0.34,0.82]]
- ],
- 'お':[
-  [[0.60,0.30],[0.40,0.34],[0.34,0.54],[0.46,0.72],[0.62,0.60],[0.56,0.44],[0.46,0.46],[0.52,0.58]]
- ],
- 'か':[
-  [[0.30,0.30],[0.60,0.26]],
-  [[0.40,0.40],[0.55,0.50],[0.40,0.62],[0.55,0.74],[0.38,0.82]]
- ],
- 'き':[
-  [[0.32,0.30],[0.34,0.78]],
-  [[0.50,0.38],[0.68,0.36],[0.56,0.50],[0.68,0.64]]
- ],
- 'く':[
-  [[0.30,0.34],[0.48,0.52],[0.40,0.66]],
-  [[0.42,0.56],[0.62,0.74],[0.50,0.80]]
- ],
- 'け':[
-  [[0.30,0.32],[0.58,0.30],[0.50,0.52]],
-  [[0.36,0.50],[0.56,0.60],[0.44,0.78],[0.60,0.82]]
- ],
- 'こ':[
-  [[0.30,0.32],[0.58,0.30],[0.46,0.50]],
-  [[0.34,0.50],[0.56,0.62],[0.40,0.78],[0.60,0.80]]
- ],
- 'さ':[
-  [[0.30,0.34],[0.62,0.28]],
-  [[0.42,0.42],[0.56,0.52],[0.40,0.66],[0.56,0.80]]
- ],
- 'し':[
-  [[0.30,0.32],[0.50,0.52],[0.42,0.80]]
- ],
- 'す':[
-  [[0.60,0.30],[0.36,0.46],[0.58,0.50],[0.36,0.62],[0.60,0.72]]
- ],
- 'せ':[
-  [[0.30,0.32],[0.58,0.30],[0.48,0.50]],
-  [[0.38,0.52],[0.56,0.60],[0.44,0.78],[0.60,0.80]]
- ],
- 'そ':[
-  [[0.30,0.32],[0.58,0.30],[0.48,0.50]],
-  [[0.34,0.50],[0.56,0.62],[0.40,0.78],[0.60,0.80]]
- ],
- 'た':[
-  [[0.30,0.32],[0.60,0.30]],
-  [[0.44,0.42],[0.40,0.64],[0.58,0.82]]
- ],
- 'ち':[
-  [[0.30,0.30],[0.50,0.52],[0.34,0.80]],
-  [[0.50,0.40],[0.66,0.56]]
- ],
- 'つ':[
-  [[0.58,0.30],[0.34,0.42],[0.56,0.46],[0.36,0.58],[0.60,0.66]]
- ],
- 'て':[
-  [[0.30,0.34],[0.62,0.30]],
-  [[0.40,0.44],[0.58,0.58],[0.42,0.76]]
- ],
- 'と':[
-  [[0.30,0.32],[0.60,0.30]],
-  [[0.40,0.46],[0.60,0.50],[0.42,0.66],[0.58,0.78]]
- ],
- 'な':[
-  [[0.30,0.34],[0.58,0.30]],
-  [[0.46,0.44],[0.40,0.64],[0.56,0.78]]
- ],
- 'に':[
-  [[0.34,0.30],[0.38,0.78]],
-  [[0.58,0.32],[0.56,0.78]]
- ],
- 'ぬ':[
-  [[0.34,0.30],[0.58,0.34],[0.40,0.50],[0.58,0.66],[0.34,0.78]],
-  [[0.50,0.52],[0.62,0.62]]
- ],
- 'ね':[
-  [[0.34,0.30],[0.58,0.34],[0.42,0.50],[0.58,0.66],[0.34,0.78]],
-  [[0.40,0.62],[0.58,0.76]]
- ],
- 'の':[
-  [[0.62,0.30],[0.38,0.40],[0.56,0.58],[0.34,0.70],[0.58,0.76]],
-  [[0.34,0.58],[0.50,0.66]]
- ],
- 'は':[
-  [[0.30,0.34],[0.60,0.30]],
-  [[0.46,0.44],[0.42,0.64],[0.56,0.78]]
- ],
- 'ひ':[
-  [[0.34,0.30],[0.36,0.60],[0.38,0.78]],
-  [[0.52,0.38],[0.64,0.50],[0.52,0.62]]
- ],
- 'ふ':[
-  [[0.30,0.52],[0.46,0.40],[0.60,0.52],[0.46,0.64],[0.30,0.52]],
-  [[0.40,0.70],[0.56,0.66]]
- ],
- 'へ':[
-  [[0.30,0.34],[0.60,0.50],[0.30,0.66]]
- ],
- 'ほ':[
-  [[0.30,0.34],[0.60,0.30]],
-  [[0.46,0.44],[0.42,0.64],[0.56,0.78]]
- ],
- 'ま':[
-  [[0.30,0.34],[0.58,0.30]],
-  [[0.44,0.42],[0.36,0.60],[0.54,0.74]],
-  [[0.40,0.54],[0.56,0.50],[0.48,0.66],[0.58,0.64]]
- ],
- 'み':[
-  [[0.34,0.30],[0.30,0.52],[0.36,0.78]],
-  [[0.58,0.32],[0.54,0.54],[0.60,0.78]]
- ],
- 'む':[
-  [[0.30,0.50],[0.46,0.38],[0.60,0.50],[0.46,0.62],[0.30,0.50]],
-  [[0.36,0.70],[0.52,0.66]]
- ],
- 'め':[
-  [[0.30,0.50],[0.46,0.38],[0.60,0.50],[0.46,0.62],[0.30,0.50]],
-  [[0.34,0.66],[0.52,0.72]]
- ],
- 'も':[
-  [[0.30,0.50],[0.46,0.38],[0.60,0.50],[0.46,0.62],[0.30,0.50]],
-  [[0.42,0.44],[0.40,0.62],[0.56,0.76]]
- ],
- 'や':[
-  [[0.30,0.34],[0.58,0.30]],
-  [[0.44,0.42],[0.36,0.62],[0.56,0.78]]
- ],
- 'ゆ':[
-  [[0.32,0.32],[0.56,0.44],[0.34,0.58],[0.56,0.70]],
-  [[0.40,0.66],[0.52,0.74]]
- ],
- 'よ':[
-  [[0.30,0.34],[0.58,0.30]],
-  [[0.44,0.42],[0.38,0.60],[0.56,0.74],[0.34,0.78]]
- ],
- 'ら':[
-  [[0.30,0.34],[0.58,0.30]],
-  [[0.46,0.42],[0.40,0.58],[0.52,0.70],[0.42,0.78]]
- ],
- 'り':[
-  [[0.34,0.30],[0.32,0.58],[0.38,0.78]],
-  [[0.56,0.34],[0.52,0.62],[0.58,0.78]]
- ],
- 'る':[
-  [[0.30,0.34],[0.58,0.30]],
-  [[0.44,0.42],[0.38,0.58],[0.52,0.70],[0.40,0.80]]
- ],
- 'れ':[
-  [[0.30,0.34],[0.58,0.30]],
-  [[0.44,0.42],[0.38,0.56],[0.54,0.62],[0.38,0.74],[0.56,0.80]]
- ],
- 'ろ':[
-  [[0.30,0.34],[0.58,0.30]],
-  [[0.44,0.42],[0.40,0.58],[0.54,0.66],[0.40,0.78]]
- ],
- 'わ':[
-  [[0.30,0.34],[0.58,0.30]],
-  [[0.46,0.44],[0.38,0.62],[0.56,0.76]]
- ],
- 'を':[
-  [[0.30,0.34],[0.58,0.30]],
-  [[0.46,0.44],[0.40,0.62],[0.56,0.78]],
-  [[0.64,0.60],[0.62,0.76]]
- ],
- 'ん':[
-  [[0.34,0.34],[0.56,0.30],[0.60,0.48],[0.42,0.62],[0.56,0.74]]
- ]
-};
 function jpKanaAll(){const a=[];JP_KANA_ROWS.forEach(function(row,ri){row.items.forEach(function(it){a.push({k:it[0],r:it[1],tip:it[2],row:ri});});});a.push({k:JP_NN.k,r:JP_NN.r,tip:JP_NN.tip,row:99});return a;}
 // N5 核心单词 100 个：[假名, 罗马音, 声调(0-4), 中文, 场景]
 const JP_WORDS=[
@@ -5223,7 +5060,7 @@ function openSettings(){
   '<button class="btn-primary" onclick="saveSettings()">保存设置</button>'+
  '<div class="sec-title mt12"><div class="left" style="color:var(--hab)">报告</div></div><button class="btn-ghost" onclick="generateWeeklyReport()" style="width:100%;margin-bottom:8px">春日部新闻报（周报）</button><button class="btn-ghost" onclick="generateMonthlyReport()" style="width:100%;margin-bottom:8px">机智可爱田财政赤字报告（月报）</button>'+
  '<div class="sec-title"><div class="left" style="color:var(--expense)">数据管理</div></div><button class="btn-ghost" onclick="clearDemoData()" style="width:100%;margin-bottom:8px">清空示例数据</button><button class="btn-ghost" onclick="clearAllData()" style="width:100%;color:var(--expense);border-color:var(--expense)">清空所有数据</button><div id="backup-history"></div>'+
- '<div class="sec-title"><div class="left" style="color:#3B82C4">数据同步（连 Supabase 服务器 · 自动同步）</div><span style="font-size:10px;background:#E60012;color:#fff;padding:2px 8px;border-radius:6px;font-weight:700">v39</span></div>'
+ '<div class="sec-title"><div class="left" style="color:#3B82C4">数据同步（连 Supabase 服务器 · 自动同步）</div><span style="font-size:10px;background:#E60012;color:#fff;padding:2px 8px;border-radius:6px;font-weight:700">v40</span></div>'
 +'<div class="card-tight card mb8" style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:13px">连服务器自动同步（手机电脑共享）</span><button class="btn-ghost" id="supa-on-btn" onclick="supaToggleOn()" style="font-size:12px;padding:6px 14px;min-height:34px">'+(DB.get('sync_on',false)?'已开启':'已关闭')+'</button></div>'
 +'<div class="form-group"><label class="form-label">Supabase 项目 URL</label><input type="text" id="sync-url" value="'+hEsc(DB.get('sync_url','https://zmlkhnhjqcpzhywrgtiw.supabase.co'))+'" placeholder="https://xxxx.supabase.co"></div>'
 +'<div class="form-group"><label class="form-label">anon / public key</label><input type="text" id="sync-key" value="'+hEsc(DB.get('sync_key','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InptbGtobmhqcWNwemh5d3JndGl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYxMjY2NjcsImV4cCI6MjEwMTcwMjY2N30.hZnlONauB0y20wMEF7OG5kRn2uR2PCvcVEfrAE9FoVI'))+'" placeholder="eyJhbGciOi... 或 sb_publishable_..."></div>'
@@ -5353,7 +5190,6 @@ function applyNightMode(){
 // ============ Init ============
 // ============ 日语课 模块 ============
 function saveJp(){ try{ DB.set('japanese', state.japanese); }catch(e){} }
-function saveJp(){ try{ DB.set('japanese', state.japanese); }catch(e){} }
 function speakJapanese(text, rate){
  try{
   if(!('speechSynthesis' in window)){ toast('此浏览器不支持语音合成'); return; }
@@ -5467,30 +5303,15 @@ function renderJpToday(box){
  try{
   const plan=jpTodayPlan();
   let html='<div class="sec-title"><div class="left"><div class="dot" style="background:#2E7DD1"></div>今日学习（第 '+(state.japanese.learnedDays+1)+' 天）</div></div>';
-  if(plan==='kana'){ const k=jpNextKana(); if(k) html+=jpKanaCardHTML(k); else html+=jpWordsCardHTML(jpCurrentWord()); }
+  if(plan==='kana'){ html+=jpKanaBoardHTML(); }
   else if(plan==='words'){ html+=jpWordsCardHTML(jpCurrentWord()); }
   else { html+=jpSentencesCardHTML(jpCurrentSentence()); }
   box.innerHTML=html;
+  initKanaCanvas();
  }catch(e){ console.warn('[jp today]',e); }
 }
 // ---------- 假名卡片（五步：看→听→跟读→跟写→通关） ----------
-function jpKanaCardHTML(k){
-  const seg=state.japanese.kana; const st=jpSegState(seg,k.k);
-  return '<div class="card jp-study">'+
-    '<div class="jp-step">第 1 步 看 · 第 2 步 听 · 第 3 步 跟读 · 第 4 步 跟写</div>'+
-    '<div class="jp-big">'+k.k+'</div>'+
-    '<div class="jp-reading">'+k.r+'</div>'+
-    '<div class="jp-tip">👄 '+k.tip+'</div>'+
-    '<div class="jp-five">'+
-     '<button class="jp-btn" onclick="jpKanaHear(\''+k.k+'\')">🔊 听发音（循环3遍）</button>'+
-     '<button class="jp-btn '+(st.read?'jp-btn-on':'')+'" onclick="jpKanaRead(\''+k.k+'\')">🎤 我能读出来了'+(st.read?' ✓':'')+'</button>'+
-     '<button class="jp-btn '+(st.write?'jp-btn-on':'')+'" onclick="jpKanaWrite(\''+k.k+'\')">✍️ 我能写出来了'+(st.write?' ✓':'')+'</button>'+
-    '</div>'+
-    '<div class="jp-status">跟读 '+(st.read?'☑':'☐')+'　跟写 '+(st.write?'☑':'☐')+'</div>'+
-    (st.read&&st.write?'<div class="jp-clear">🎉 已掌握！</div>':'<div class="jp-warn">⚠️ 完成跟读和跟写才能继续</div>')+
-    '<div id="jp-trace-box"></div>'+
-   '</div>';
-}
+function jpKanaCardHTML(k){ return jpKanaBoardHTML(); }
 function jpKanaHear(k){
   try{
    if(!('speechSynthesis' in window)){ toast('此浏览器不支持语音合成'); return; }
@@ -5499,15 +5320,6 @@ function jpKanaHear(k){
   }catch(e){}
 }
 function jpKanaRead(k){ try{ const seg=state.japanese.kana; jpSetRead(seg,k); jpRecompute(seg); saveJp(); jpKanaAfter(k); }catch(e){} }
-function jpKanaWrite(k){
-  const box=document.getElementById('jp-trace-box'); if(!box)return;
-  box.innerHTML='<div class="jp-trace-title">✍️ 照着灰色底稿描摹「'+k+'」</div>'+
-    '<canvas id="jp-trace" class="jp-trace-canvas" width="300" height="300"></canvas>'+
-    '<div class="jp-cov">覆盖度：<span id="jp-cov-val">0%</span></div>'+
-    '<div class="jp-trace-btns"><button class="btn-ghost" onclick="jpTraceUndo()">撤销上一笔</button><button class="btn-ghost" onclick="jpTraceClear()">清空重描</button><button class="btn-primary" onclick="jpTraceCheck(\''+k+'\')">✅ 描好了！检查</button></div>'+
-    '<div class="jp-trace-hint">从笔画起点顺着方向描，覆盖底稿 70% 以上即合格</div>';
-  jpTraceSetup(k);
-}
 function jpKanaAfter(k){
   const seg=state.japanese.kana; const was=seg.mastered.indexOf(k)>=0;
   jpRecompute(seg); saveJp();
@@ -5605,26 +5417,8 @@ function jpSentenceNext(){ if(state.japanese.sentences.currentIndex<JP_SENTENCES
 // ---------- 标签渲染 ----------
 function renderJpKana(box){
   try{
-   const m=state.japanese.kana.mastered||[];
-   let rows=JP_KANA_ROWS.map(function(row, ri){
-    const unlocked=jpRowUnlocked(ri);
-    let cells=row.items.map(function(it){
-     const on=m.indexOf(it[0])>=0;
-     const rd=(state.japanese.kana.read||[]).indexOf(it[0])>=0;
-     const wr=(state.japanese.kana.write||[]).indexOf(it[0])>=0;
-     let badge = on?'<div class="jp-kana-ok">✓</div>':(rd?'<div class="jp-kana-ok" style="color:#2E7DD1;font-size:10px">读</div>':(wr?'<div class="jp-kana-ok" style="color:#E8703A;font-size:10px">写</div>':''));
-     return '<div class="jp-kana'+(on?' on':'')+'" onclick="speakKana(\''+it[0]+'\')"><div class="jp-kana-k">'+it[0]+'</div><div class="jp-kana-r">'+it[1]+'</div>'+badge+'</div>';
-    }).join('');
-    return '<div class="jp-kana-row'+(unlocked?'':' jp-row-lock')+'"><div class="jp-kana-label">'+row.label+(unlocked?'':' 🔒')+'</div><div class="jp-kana-cells">'+cells+'</div></div>';
-   }).join('');
-   const nnUnlocked=jpRowUnlocked(99);
-   const nnOn=m.indexOf(JP_NN.k)>=0;
-   rows+='<div class="jp-kana-row'+(nnUnlocked?'':' jp-row-lock')+'"><div class="jp-kana-label">拨音'+(nnUnlocked?'':' 🔒')+'</div><div class="jp-kana-cells"><div class="jp-kana'+(nnOn?' on':'')+'" onclick="speakKana(\''+JP_NN.k+'\')"><div class="jp-kana-k">'+JP_NN.k+'</div><div class="jp-kana-r">'+JP_NN.r+'</div>'+(nnOn?'<div class="jp-kana-ok">✓</div>':'')+'</div></div></div>';
-   const next=jpNextKana();
-   const nextHtml = next ? ('<div style="margin-top:12px">'+jpKanaCardHTML(next)+'</div>') : '<div class="card jp-study" style="margin-top:12px">🎉 五十音全部掌握！去「单词」标签继续吧</div>';
-   box.innerHTML='<div class="sec-title"><div class="left"><div class="dot" style="background:#2E7DD1"></div>五十音图（点卡片听发音 · 🔒为未解锁行）</div></div>'+
-    '<div class="card"><div class="jp-progress"><div class="jp-bar"><div class="jp-bar-fill" style="width:'+Math.round(m.length/jpKanaAll().length*100)+'%"></div></div><div class="jp-progress-txt">已掌握 '+m.length+' / '+jpKanaAll().length+' 个</div></div></div>'+
-    '<div class="jp-kana-table">'+rows+'</div>'+nextHtml;
+    box.innerHTML='<div class="sec-title"><div class="left"><div class="dot" style="background:#2E7DD1"></div>五十音 · 临摹对照板</div></div>'+jpKanaBoardHTML();
+    initKanaCanvas();
   }catch(e){ console.warn('[jp kana]',e); }
 }
 function renderJpWords(box){
@@ -5672,55 +5466,87 @@ function jpSentenceWords(idx){
  }catch(e){}
 }
 function jpSentenceFull(idx){ const s=JP_SENTENCES[idx]; speakJapanese(s.jp, 0.9); }
-// ============ Canvas 描摹与覆盖度检测 ============
-let _jpTraceStrokes=[];
-let _jpTraceCur=null;
-let _jpTraceKana=null;
-function jpTraceSetup(k){
-  _jpTraceKana=k; _jpTraceStrokes=[];
-  const cv=document.getElementById('jp-trace'); if(!cv)return;
-  try{ jpTraceRender(cv); }catch(e){}
-  cv.onpointerdown=function(e){ e.preventDefault(); _jpTraceCur=[]; _jpTraceStrokes.push(_jpTraceCur); jpTraceAdd(e,cv); };
-  cv.onpointermove=function(e){ if(_jpTraceCur)jpTraceAdd(e,cv); };
-  cv.onpointerup=function(e){ _jpTraceCur=null; jpTraceUpdateCov(cv); };
-  cv.onpointerleave=function(e){ if(_jpTraceCur){ _jpTraceCur=null; jpTraceUpdateCov(cv); } };
+
+// ============ 临摹对照板（自由书写 + 用户自判通过，不依赖识别算法） ============
+let _kanaCv=null,_kanaCtx=null,_kanaDrawing=false,_kanaPaths=[],_kanaCur=[];
+function jpKanaBoardHTML(){
+  try{
+    const seg=state.japanese.kana;
+    const cur=jpNextKana();
+    if(!cur){ return '<div class="card jp-board"><div class="jp-done-all">🎊 五十音全部掌握！去「单词」标签继续吧</div></div>'; }
+    let refItems, refLabel;
+    const row=JP_KANA_ROWS[cur.row];
+    if(row){ refItems=row.items; refLabel='当前 '+row.label; }
+    else { refItems=[[cur.k,cur.r]]; refLabel='拨音（ん）'; }
+    const ci=refItems.findIndex(function(it){return it[0]===cur.k;});
+    const total=jpKanaAll().length;
+    const st=jpSegState(seg,cur.k);
+    const grid=refItems.map(function(it){
+      const isCur=it[0]===cur.k;
+      const m=seg.mastered.indexOf(it[0])>=0;
+      const rd=(seg.read||[]).indexOf(it[0])>=0;
+      const wr=(seg.write||[]).indexOf(it[0])>=0;
+      const cls='jp-ref-kana'+(isCur?' jp-ref-cur':'')+(m?' jp-ref-done':'');
+      const mark=m?'✓':(rd?'读':(wr?'写':''));
+      return '<div class="'+cls+'" onclick="speakKana(\''+it[0]+'\')"><div class="jp-ref-big">'+it[0]+'</div><div class="jp-ref-r">'+it[1]+'</div>'+(mark?'<div class="jp-ref-mark">'+mark+'</div>':'')+'</div>';
+    }).join('');
+    return '<div class="card jp-board jp-copy">'+
+      '<div class="jp-ref-area">'+
+        '<div class="jp-ref-title">参照区 · '+refLabel+'（点卡片听发音）</div>'+
+        '<div class="jp-ref-grid" id="jp-ref-grid">'+grid+'</div>'+
+        '<button class="btn-ghost" onclick="jpKanaSpeakRow()">🔊 听整行发音</button>'+
+        '<div class="jp-progress-hint">当前：'+cur.k+'（'+(ci+1)+'/'+refItems.length+'）· 总进度 '+seg.mastered.length+'/'+total+'</div>'+
+      '</div>'+
+      '<div class="jp-write-area">'+
+        '<canvas id="jp-write-cv" class="jp-write-canvas" width="340" height="280"></canvas>'+
+        '<div class="jp-write-tools">'+
+          '<button class="btn-ghost" onclick="kanaClearCanvas()">🗑 清空</button>'+
+          '<button class="btn-ghost" onclick="kanaUndoCanvas()">↩ 撤销</button>'+
+          '<button class="jp-btn '+(st.read?'jp-btn-on':'')+'" onclick="jpKanaRead(\''+cur.k+'\')">🎤 我能读出来了'+(st.read?' ✓':'')+'</button>'+
+          '<button class="jp-btn '+(st.write?'jp-btn-on':'')+'" onclick="kanaWriteDone()">✅ 这个我写好了'+(st.write?' ✓':'')+'</button>'+
+        '</div>'+
+        '<div class="jp-write-hint">参照上方假名，在格子里练习书写（自由书写，自己判断像不像）</div>'+
+        '<div class="jp-status">跟读 '+(st.read?'☑':'☐')+'　跟写 '+(st.write?'☑':'☐')+'</div>'+
+        (st.read&&st.write?'<div class="jp-clear">🎉 已掌握！自动进入下一个</div>':'<div class="jp-warn">⚠️ 跟读和跟写都完成才算掌握</div>')+
+      '</div>'+
+    '</div>';
+  }catch(e){ console.warn('[jp board]',e); return ''; }
 }
-function jpTracePos(e,cv){ const r=cv.getBoundingClientRect(); return {x:(e.clientX-r.left)/r.width, y:(e.clientY-r.top)/r.height}; }
-function jpTraceRender(cv){
-  const x=cv.getContext('2d'); x.clearRect(0,0,cv.width,cv.height);
-  jpTraceDrawBasePath(x,cv);
-  x.strokeStyle='#2E7DD1'; x.lineWidth=cv.width*0.035; x.lineCap='round'; x.lineJoin='round';
-  _jpTraceStrokes.forEach(function(st){ if(st.length<1)return; x.beginPath(); st.forEach(function(p,i){ const pp=jpPt(p); const px=pp[0]*cv.width, py=pp[1]*cv.height; if(i===0)x.moveTo(px,py); else x.lineTo(px,py); }); x.stroke(); });
+function initKanaCanvas(){
+  const cv=document.getElementById('jp-write-cv'); if(!cv)return;
+  _kanaCv=cv; _kanaCtx=cv.getContext('2d'); _kanaPaths=[]; _kanaCur=[];
+  _kanaCtx.lineWidth=6; _kanaCtx.lineCap='round'; _kanaCtx.lineJoin='round'; _kanaCtx.strokeStyle='#3D2B1F';
+  kanaDrawGrid();
+  cv.onpointerdown=function(e){ e.preventDefault(); _kanaDrawing=true; _kanaCur=[]; const p=kanaPos(e); _kanaCtx.beginPath(); _kanaCtx.moveTo(p.x,p.y); _kanaCur.push(p); };
+  cv.onpointermove=function(e){ if(!_kanaDrawing)return; const p=kanaPos(e); _kanaCtx.lineTo(p.x,p.y); _kanaCtx.stroke(); _kanaCur.push(p); };
+  cv.onpointerup=function(){ kanaEnd(); };
+  cv.onpointerleave=function(){ kanaEnd(); };
 }
-function jpPt(p){ return (Array.isArray(p)) ? p : [p.x, p.y]; }
-function jpTraceDrawBasePath(x,cv){
-  const data=STROKE_DATA[_jpTraceKana]; if(!data)return;
-  x.strokeStyle='rgba(120,130,140,0.32)'; x.lineWidth=cv.width*0.05; x.lineCap='round'; x.lineJoin='round';
-  data.forEach(function(st){ x.beginPath(); st.forEach(function(p,i){ const pp=jpPt(p); const px=pp[0]*cv.width, py=pp[1]*cv.height; if(i===0)x.moveTo(px,py); else x.lineTo(px,py); }); x.stroke(); });
+function kanaPos(e){ const cv=_kanaCv, r=cv.getBoundingClientRect(); return {x:(e.clientX-r.left)*(cv.width/r.width), y:(e.clientY-r.top)*(cv.height/r.height)}; }
+function kanaEnd(){ if(_kanaDrawing && _kanaCur.length>1)_kanaPaths.push(_kanaCur); _kanaDrawing=false; _kanaCur=[]; }
+function kanaDrawGrid(){
+  const cv=_kanaCv, x=_kanaCtx; x.save(); x.strokeStyle='rgba(200,200,200,0.32)'; x.lineWidth=1;
+  const gw=cv.width/4, gh=cv.height/4;
+  for(let i=1;i<4;i++){ x.beginPath(); x.moveTo(i*gw,0); x.lineTo(i*gw,cv.height); x.stroke(); x.beginPath(); x.moveTo(0,i*gh); x.lineTo(cv.width,i*gh); x.stroke(); }
+  x.restore();
 }
-function jpTraceAdd(e,cv){ const p=jpTracePos(e,cv); if(_jpTraceCur.length){ const last=_jpTraceCur[_jpTraceCur.length-1]; const x=cv.getContext('2d'); x.strokeStyle='#2E7DD1'; x.lineWidth=cv.width*0.035; x.lineCap='round'; x.lineJoin='round'; x.beginPath(); x.moveTo(last.x*cv.width,last.y*cv.height); x.lineTo(p.x*cv.width,p.y*cv.height); x.stroke(); } _jpTraceCur.push(p); jpTraceUpdateCov(cv); }
-function jpRaster(strokes, W, H, lw){
-  const c=document.createElement('canvas'); c.width=W; c.height=H; const x=c.getContext('2d');
-  x.strokeStyle='#000'; x.fillStyle='#000'; x.lineWidth=lw; x.lineCap='round'; x.lineJoin='round';
-  strokes.forEach(function(st){ if(!st||st.length===0)return; if(st.length===1){ const pp=jpPt(st[0]); x.beginPath(); x.arc(pp[0]*W, pp[1]*H, lw/2, 0, 7); x.fill(); return; } x.beginPath(); st.forEach(function(p,i){ const pp=jpPt(p); const px=pp[0]*W, py=pp[1]*H; if(i===0)x.moveTo(px,py); else x.lineTo(px,py); }); x.stroke(); });
-  const d=x.getImageData(0,0,W,H).data; const g=new Uint8Array(W*H);
-  for(let i=3;i<d.length;i+=4){ if(d[i]>30) g[(i-3)/4]=1; } return g;
+function kanaRedrawAll(){
+  const cv=_kanaCv, x=_kanaCtx; x.clearRect(0,0,cv.width,cv.height); kanaDrawGrid();
+  x.strokeStyle='#3D2B1F'; x.lineWidth=6; x.lineCap='round'; x.lineJoin='round';
+  _kanaPaths.forEach(function(path){ x.beginPath(); path.forEach(function(p,i){ i===0?x.moveTo(p.x,p.y):x.lineTo(p.x,p.y); }); x.stroke(); });
 }
-function jpTraceUpdateCov(cv){
-  const base=STROKE_DATA[_jpTraceKana]; if(!base){ return; }
-  const W=80,H=80,lw=9;
-  const bg=jpRaster(base,W,H,lw);
-  const ug=jpRaster(_jpTraceStrokes,W,H,lw);
-  let inter=0, total=0; for(let i=0;i<bg.length;i++){ if(bg[i]){ total++; if(ug[i])inter++; } }
-  const cov= total>0?inter/total:0; window._jpCov=window._jpCov||{}; window._jpCov[_jpTraceKana]=cov;
-  const el=document.getElementById('jp-cov-val'); if(el) el.textContent=Math.round(cov*100)+'%';
-}
-function jpTraceUndo(){ if(_jpTraceStrokes.length){ _jpTraceStrokes.pop(); const cv=document.getElementById('jp-trace'); if(cv)jpTraceRender(cv); jpTraceUpdateCov(cv); } }
-function jpTraceClear(){ _jpTraceStrokes=[]; const cv=document.getElementById('jp-trace'); if(cv)jpTraceRender(cv); jpTraceUpdateCov(cv); }
-function jpTraceCheck(k){
-  const cov= (window._jpCov&&window._jpCov[k])||0;
-  if(cov>=0.7){ jpSetWrite(state.japanese.kana, k); jpKanaAfter(k); toast('✅ 描得很好！跟写完成'); }
-  else { toast('再练练吧！覆盖度 '+Math.round(cov*100)+'%（需≥70%）'); }
+function kanaClearCanvas(){ if(!_kanaCv)return; _kanaPaths=[]; _kanaCur=[]; _kanaCtx.clearRect(0,0,_kanaCv.width,_kanaCv.height); kanaDrawGrid(); }
+function kanaUndoCanvas(){ if(_kanaPaths.length===0)return; _kanaPaths.pop(); kanaRedrawAll(); }
+function jpKanaSpeakRow(){ try{ const cur=jpNextKana(); if(!cur)return; const row=JP_KANA_ROWS[cur.row]; if(!row)return; const u=new SpeechSynthesisUtterance(row.items.map(function(it){return it[0];}).join('、')); u.lang='ja-JP'; u.rate=0.6; window.speechSynthesis.cancel(); window.speechSynthesis.speak(u); }catch(e){} }
+function kanaWriteDone(){
+  try{
+    const seg=state.japanese.kana; const cur=jpNextKana(); if(!cur)return; const k=cur.k;
+    if(seg.write.indexOf(k)>=0){ toast('「'+k+'」已经写过了，继续下一个吧'); kanaClearCanvas(); return; }
+    const was=seg.mastered.indexOf(k)>=0;
+    jpSetWrite(seg,k); jpRecompute(seg); saveJp();
+    if(!was && seg.mastered.indexOf(k)>=0){ markJpItem('kana','五十音「'+k+'」'); }
+    else { toast('✍️ 跟写完成！记得点🎤完成跟读'); renderJapanese(); renderJpHomeCard(); renderToday(); }
+  }catch(e){}
 }
 function yesterdayStr(){ const d=new Date(); d.setDate(d.getDate()-1); return dateStr(d); }
 function markJpItem(kind, label){
@@ -6720,7 +6546,7 @@ function _slimValue(k,val,cap){
 
 // 收集本地白名单数据（全量，作为上传合并基底）。返回字符串包 {key: jsonString}
 function collectSyncData(){
- var pkg={_ts:new Date().toISOString(),_v:39}, total=0, changed=0, skipped=[];
+ var pkg={_ts:new Date().toISOString(),_v:40}, total=0, changed=0, skipped=[];
  var whitelistKeys=Object.keys(SYNC_WHITELIST);
  for(var wi=0;wi<whitelistKeys.length;wi++){
   var k=whitelistKeys[wi];
