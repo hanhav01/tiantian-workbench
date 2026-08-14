@@ -1041,6 +1041,45 @@ display:flex;align-items:center;justify-content:space-between;margin-bottom:12px
 .jp-input-row{display:flex;gap:8px;margin-top:10px}
 .jp-input{flex:1;border:1px solid #e0e0e0;border-radius:10px;padding:10px 12px;font-size:14px;background:#fff;color:var(--text)}
 .jp-input:focus{outline:none;border-color:#2E7DD1}
+/* 引导式学习系统（v38） */
+.jp-tabs{display:flex;gap:6px;margin:12px 0 4px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.jp-tab{flex:0 0 auto;border:1px solid #e2e8f0;background:#fff;color:#5a6b7a;border-radius:14px;padding:7px 12px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.jp-tab.on{background:#2E7DD1;color:#fff;border-color:#2E7DD1}
+.jp-study{text-align:center;background:linear-gradient(135deg,#FFF7F0,#FFFDFA)}
+.jp-small{font-size:12px;color:var(--text3);margin-bottom:4px}
+.jp-big{font-size:30px;font-weight:800;color:var(--text);letter-spacing:2px;margin:2px 0}
+.jp-reading{font-size:16px;color:#5a6b7a;margin-top:4px;font-style:italic}
+.jp-pitch{display:inline-block;margin-left:4px;color:#E8703A;font-weight:700;font-style:normal}
+.jp-meaning{font-size:16px;color:#234;margin-top:6px;font-weight:700}
+.jp-tip{font-size:13px;color:#3a5;background:#EFFaf0;border-radius:10px;padding:8px 10px;margin-top:10px;text-align:left}
+.jp-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:14px}
+.jp-actions .btn-primary,.jp-actions .btn-ghost{flex:1;min-width:96px}
+.jp-hint{font-size:11px;color:var(--text3);margin-top:10px}
+.jp-readdots{margin-top:8px;font-size:12px;color:var(--text3)}
+.jp-dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:#e0e0e0;margin:0 3px;vertical-align:middle}
+.jp-dot.on{background:#2E7DD1}
+.jp-br{text-align:left;margin-top:10px;background:#F4F8FF;border-radius:10px;padding:8px 10px}
+.jp-br-i{display:flex;gap:8px;align-items:baseline;padding:3px 0;border-bottom:1px dashed #e3ecf7}
+.jp-br-i:last-child{border-bottom:none}
+.jp-br-i b{font-size:15px;color:var(--text);min-width:84px}
+.jp-br-i span{font-size:12px;color:#2E7DD1;font-style:italic;min-width:90px}
+.jp-br-i i{font-size:12px;color:var(--text3);font-style:normal;flex:1}
+.jp-kana-table{margin-top:10px}
+.jp-kana-row{display:flex;align-items:stretch;gap:6px;margin-bottom:6px}
+.jp-kana-label{display:flex;align-items:center;font-size:12px;color:var(--text3);width:40px;flex:0 0 40px;justify-content:flex-end}
+.jp-kana-cells{display:flex;gap:6px;flex:1}
+.jp-kana{flex:1;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:10px 4px;text-align:center;cursor:pointer;position:relative;transition:all .15s}
+.jp-kana:active{transform:scale(.96)}
+.jp-kana-k{font-size:22px;font-weight:800;color:var(--text);line-height:1.1}
+.jp-kana-r{font-size:11px;color:#5a6b7a;margin-top:2px}
+.jp-kana.on{background:#E7F7EA;border-color:#7CC98B}
+.jp-kana.on .jp-kana-k{color:#2E9E4F}
+.jp-kana-ok{position:absolute;top:2px;right:5px;font-size:12px;color:#2E9E4F;font-weight:800}
+.jp-mini{display:flex;gap:8px;margin-top:12px}
+.jp-mini-i{flex:1;background:#F2F7FF;border-radius:12px;padding:8px 4px;text-align:center}
+.jp-mini-n{font-size:16px;font-weight:800;color:#2E7DD1}
+.jp-mini-l{font-size:11px;color:var(--text3);margin-top:2px}
+.jp-lock{text-align:center;color:#8a93a0;padding:18px 10px;line-height:1.7}
 </style>
 <script src="https://beacon.cdn.qq.com/sdk/4.5.9/beacon_web.min.js"></script>
 <script>
@@ -1348,7 +1387,8 @@ align-items:center;justify-content:center;font-size:13px}
 <!-- 今日日语 卡片 -->
 <div class="today-card" id="jp-home-card" onclick="openJapanese()" style="cursor:pointer;background:linear-gradient(135deg,#E3F0FF,#D9ECFF);color:#234">
 <h3>📚 今日日语 <span id="jp-home-streak" style="float:right;font-size:11px;font-weight:600;color:#2E7DD1"></span></h3>
-<div id="jp-home-sentence"></div>
+<div id="jp-home-prog" style="font-size:11px;color:#2E7DD1;margin:2px 0 4px;font-weight:600"></div>
+<div id="jp-home-today" style="font-size:14px;font-weight:700"></div>
 </div>
 <!-- Today's Urgent -->
 <div class="today-card" id="today-card">
@@ -1938,7 +1978,7 @@ function DEMO_MEDIA(){
 
 // ============ State ============
 // ============ 日语课 内置语料（N5 日常用语 50 句） ============
-const JAPANESE_SENTENCES=[
+const JP_SENTENCES_UNUSED=[
  {jp:'こんにちは',reading:'konnichiwa',meaning:'你好',scene:'白天见面'},
  {jp:'おはようございます',reading:'ohayou gozaimasu',meaning:'早上好',scene:'早晨见面'},
  {jp:'こんばんは',reading:'konbanwa',meaning:'晚上好',scene:'傍晚见面'},
@@ -1989,7 +2029,124 @@ const JAPANESE_SENTENCES=[
  {jp:'トイレはどこですか',reading:'toire wa doko desu ka',meaning:'洗手间在哪里',scene:'问路'},
  {jp:'駅は遠いですか',reading:'eki wa tooi desu ka',meaning:'车站远吗',scene:'问路'}
 ];
-function defaultJapanese(){return{level:'N5',targetDays:90,learnedDays:0,dailySentenceIndex:0,logs:[],lastStudyDate:'',streak:0,_rotateDate:todayStr()};}
+// ============ 日语学习：内容数据 ============
+// 五十音图（基础清音 46 个，按行排列）
+const JP_KANA_ROWS=[
+ {label:'あ行',items:[['あ','a','嘴巴自然张大，短促的“阿”'],['い','i','嘴角放松，轻短“衣”'],['う','u','双唇收圆微扁“乌”，不撅嘴'],['え','e','嘴角向两边咧开“诶”'],['お','o','口型略圆“奥”']]},
+ {label:'か行',items:[['か','ka','k 轻触上颚+あ，清音不送气'],['き','ki','k+い'],['く','ku','k+う'],['け','ke','k+え'],['こ','ko','k+お']]},
+ {label:'さ行',items:[['さ','sa','さ类似汉语“撒”'],['し','shi','し读作 shi，舌尖靠近上颚'],['す','su','す读作 su，气流轻'],['せ','se','s+え'],['そ','so','s+お']]},
+ {label:'た行',items:[['た','ta','t+あ'],['ち','chi','ち读作 chi，不读“他”'],['つ','tsu','つ读作 tsu，类似“次”'],['て','te','t+え'],['と','to','t+お']]},
+ {label:'な行',items:[['な','na','n+あ，舌尖抵上齿龈'],['に','ni','n+い'],['ぬ','nu','n+う'],['ね','ne','n+え'],['の','no','n+お']]},
+ {label:'は行',items:[['は','ha','h+あ（作助词时读 wa）'],['ひ','hi','h+い'],['ふ','fu','ふ双唇收扁吹气，读 fu 不是 hu'],['へ','he','h+え（作助词读 e）'],['ほ','ho','h+お']]},
+ {label:'ま行',items:[['ま','ma','m+あ，闭唇鼻音'],['み','mi','m+い'],['む','mu','m+う'],['め','me','m+え'],['も','mo','m+お']]},
+ {label:'や行',items:[['や','ya','y+あ'],['ゆ','yu','y+う'],['よ','yo','y+お']]},
+ {label:'ら行',items:[['ら','ra','r+あ，舌尖弹一下上颚'],['り','ri','r+い'],['る','ru','r+う'],['れ','re','r+え'],['ろ','ro','r+お']]},
+ {label:'わ行',items:[['わ','wa','w+あ'],['を','wo','w+お（作宾格助词读 o）']]},
+];
+const JP_NN={k:'ん',r:'n',tip:'鼻音“嗯”，单独占一拍，不拼元音'};
+function jpKanaAll(){const a=[];JP_KANA_ROWS.forEach(function(row,ri){row.items.forEach(function(it){a.push({k:it[0],r:it[1],tip:it[2],row:ri});});});a.push({k:JP_NN.k,r:JP_NN.r,tip:JP_NN.tip,row:99});return a;}
+// N5 核心单词 100 个：[假名, 罗马音, 声调(0-4), 中文, 场景]
+const JP_WORDS=[
+ ['ご飯','ごはん',2,'米饭','饮食'],['朝ご飯','あさごはん',3,'早餐','饮食'],['昼ご飯','ひるごはん',3,'午餐','饮食'],['晩ご飯','ばんごはん',3,'晚餐','饮食'],
+ ['水','みず',1,'水','饮食'],['お茶','おちゃ',0,'茶','饮食'],['コーヒー','こーひー',3,'咖啡','饮食'],['牛乳','ぎゅうにゅう',0,'牛奶','饮食'],
+ ['ジュース','じゅーす',1,'果汁','饮食'],['パン','ぱん',1,'面包','饮食'],['りんご','りんご',0,'苹果','饮食'],['バナナ','ばなな',1,'香蕉','饮食'],
+ ['肉','にく',2,'肉','饮食'],['魚','さかな',0,'鱼','饮食'],['卵','たまご',2,'鸡蛋','饮食'],['野菜','やさい',0,'蔬菜','饮食'],
+ ['塩','しお',2,'盐','饮食'],['砂糖','さとう',2,'砂糖','饮食'],['お箸','おはし',0,'筷子','饮食'],['スプーン','すぷーん',2,'勺子','饮食'],
+ ['私','わたし',0,'我','人称'],['あなた','あなた',2,'你','人称'],['友達','ともだち',0,'朋友','人称'],['家族','かぞく',0,'家人','人称'],
+ ['先生','せんせい',3,'老师','人称'],['学生','がくせい',0,'学生','人称'],['子供','こども',0,'孩子','人称'],['母','はは',1,'妈妈','人称'],
+ ['父','ちち',1,'爸爸','人称'],['兄','あに',1,'哥哥','人称'],
+ ['家','いえ',2,'家','场所'],['学校','がっこう',0,'学校','场所'],['会社','かいしゃ',1,'公司','场所'],['駅','えき',1,'车站','场所'],
+ ['店','みせ',2,'商店','场所'],['病院','びょういん',0,'医院','场所'],['銀行','ぎんこう',0,'银行','场所'],['郵便局','ゆうびんきょく',0,'邮局','场所'],
+ ['図書館','としょかん',2,'图书馆','场所'],['トイレ','といれ',1,'洗手间','场所'],['公園','こうえん',0,'公园','场所'],
+ ['本','ほん',1,'书','物品'],['ペン','ぺん',1,'钢笔','物品'],['ノート','のーと',1,'笔记本','物品'],['車','くるま',0,'车','物品'],
+ ['自転車','じてんしゃ',2,'自行车','物品'],['お金','おかね',0,'钱','物品'],['時計','とけい',0,'钟表','物品'],['服','ふく',2,'衣服','物品'],
+ ['靴','くつ',2,'鞋','物品'],['傘','かさ',1,'伞','物品'],['鍵','かぎ',2,'钥匙','物品'],
+ ['一','いち',1,'一','数字'],['二','に',1,'二','数字'],['三','さん',1,'三','数字'],['四','よん',1,'四','数字'],
+ ['五','ご',1,'五','数字'],['六','ろく',1,'六','数字'],['七','なな',1,'七','数字'],['八','はち',1,'八','数字'],
+ ['九','きゅう',1,'九','数字'],['十','じゅう',1,'十','数字'],['百','ひゃく',2,'百','数字'],['千','せん',1,'千','数字'],
+ ['万','まん',1,'万','数字'],['時','じ',1,'点（～时）','数字'],['分','ふん',1,'分（～分）','数字'],
+ ['今日','きょう',1,'今天','时间'],['明日','あした',3,'明天','时间'],['昨日','きのう',2,'昨天','时间'],['今','いま',1,'现在','时间'],
+ ['朝','あさ',1,'早晨','时间'],['昼','ひる',2,'中午','时间'],['夜','よる',1,'晚上','时间'],['月曜日','げつようび',3,'星期一','时间'],
+ ['日曜日','にちようび',3,'星期日','时间'],
+ ['食べる','たべる',2,'吃','动词'],['飲む','のむ',1,'喝','动词'],['行く','いく',0,'去','动词'],['来る','くる',1,'来','动词'],
+ ['する','する',0,'做','动词'],['見る','みる',1,'看','动词'],['聞く','きく',0,'听','动词'],['話す','はなす',2,'说','动词'],
+ ['書く','かく',1,'写','动词'],['読む','よむ',1,'读','动词'],['買う','かう',0,'买','动词'],['売る','うる',0,'卖','动词'],
+ ['寝る','ねる',0,'睡','动词'],['起きる','おきる',2,'起床','动词'],['歩く','あるく',2,'步行','动词'],['待つ','まつ',1,'等','动词'],
+ ['分かる','わかる',2,'懂/明白','动词'],['出来る','できる',2,'会/能','动词'],
+ ['大きい','おおきい',3,'大的','形容词'],['小さい','ちいさい',3,'小的','形容词'],['新しい','あたらしい',4,'新的','形容词'],['高い','たかい',2,'贵的/高的','形容词'],
+ ['安い','やすい',1,'便宜的','形容词'],['美味しい','おいしい',0,'好吃的','形容词']
+];
+// N5 日常句子 50 句（含逐词拆解）
+const JP_SENTENCES=[
+ {jp:'こんにちは',reading:'konnichiwa',meaning:'你好',scene:'白天见面',br:[['こんにち','konnichi','今天（白天）'],['は','wa','主题助词，读 wa 不读 ha']],note:'由“今日”演变而来，白天打招呼用'},
+ {jp:'おはようございます',reading:'ohayou gozaimasu',meaning:'早上好',scene:'早晨见面',br:[['おはよう','ohayou','早'],['ございます','gozaimasu','“有”的敬语']],note:'礼貌说法，熟人可只说“おはよう”'},
+ {jp:'こんばんは',reading:'konbanwa',meaning:'晚上好',scene:'傍晚见面',br:[['こんばん','konban','今晚'],['は','wa','主题助词读 wa']]},
+ {jp:'さようなら',reading:'sayounara',meaning:'再见',scene:'离别',br:[['さようなら','sayounara','再见']]},
+ {jp:'おやすみなさい',reading:'oyasuminasai',meaning:'晚安',scene:'睡前',br:[['おやすみ','oyasumi','休息'],['なさい','nasai','敬语后缀']]},
+ {jp:'はじめまして',reading:'hajimemashite',meaning:'初次见面',scene:'自我介绍',br:[['はじめ','hajime','开始'],['まして','mashite','て形衔接']]},
+ {jp:'よろしくお願いします',reading:'yoroshiku onegaishimasu',meaning:'请多关照',scene:'自我介绍',br:[['よろしく','yoroshiku','请多关照'],['お願い','onegai','请求'],['します','shimasu','做（敬）']]},
+ {jp:'私の名前は〜です',reading:'watashi no namae wa ~ desu',meaning:'我的名字是〜',scene:'自我介绍',br:[['私','watashi','我'],['の','no','的'],['名前','namae','名字'],['は','wa','主题'],['〜','~','你的名字'],['です','desu','是']]},
+ {jp:'〜時です',reading:'~ ji desu',meaning:'现在是〜点',scene:'时间',br:[['〜','~','数字'],['時','ji','点'],['です','desu','是']]},
+ {jp:'〜分です',reading:'~ fun desu',meaning:'现在是〜分',scene:'时间',br:[['〜','~','数字'],['分','fun','分'],['です','desu','是']]},
+ {jp:'何時ですか',reading:'nan ji desu ka',meaning:'现在几点了',scene:'问时间',br:[['何','nan','什么'],['時','ji','点'],['ですか','desu ka','吗']]},
+ {jp:'いくらですか',reading:'ikura desu ka',meaning:'多少钱',scene:'购物',br:[['いくら','ikura','多少钱'],['ですか','desu ka','吗']]},
+ {jp:'これをください',reading:'kore o kudasai',meaning:'请给我这个',scene:'购物',br:[['これ','kore','这个'],['を','o','宾格助词'],['ください','kudasai','请给']]},
+ {jp:'〜はありますか',reading:'~ wa arimasu ka',meaning:'有〜吗',scene:'购物',br:[['〜','~','东西'],['は','wa','主题'],['あります','arimasu','有'],['か','ka','吗']]},
+ {jp:'メニューをお願いします',reading:'menyuu o onegaishimasu',meaning:'请给我菜单',scene:'点餐',br:[['メニュー','menyuu','菜单'],['を','o','宾格'],['お願い','onegai','请求'],['します','shimasu','做']]},
+ {jp:'〜をお願いします',reading:'~ o onegaishimasu',meaning:'我要〜',scene:'点餐',br:[['〜','~','东西'],['を','o','宾格'],['お願い','onegai','请求'],['します','shimasu','做']]},
+ {jp:'おいしいです',reading:'oishii desu',meaning:'很好吃',scene:'点餐',br:[['おいしい','oishii','好吃'],['です','desu','是']]},
+ {jp:'〜はどこですか',reading:'~ wa doko desu ka',meaning:'〜在哪里',scene:'问路',br:[['〜','~','地方/东西'],['は','wa','主题'],['どこ','doko','哪里'],['ですか','desu ka','吗']]},
+ {jp:'どうやって行きますか',reading:'dou yatte ikimasu ka',meaning:'怎么去',scene:'问路',br:[['どう','dou','怎么'],['やって','yatte','做（て形）'],['行き','iki','去'],['ますか','masu ka','吗']]},
+ {jp:'助けてください',reading:'tasukete kudasai',meaning:'请帮帮我',scene:'请求帮助',br:[['助けて','tasukete','帮忙（て形）'],['ください','kudasai','请']]},
+ {jp:'〜てもいいですか',reading:'~ te mo ii desu ka',meaning:'可以〜吗',scene:'请求帮助',br:[['〜','~','动词て形'],['ても','te mo','即使'],['いい','ii','可以'],['ですか','desu ka','吗']]},
+ {jp:'元気ですか',reading:'genki desu ka',meaning:'你好吗',scene:'日常对话',br:[['元気','genki','精神/健康'],['ですか','desu ka','吗']]},
+ {jp:'大丈夫ですか',reading:'daijoubu desu ka',meaning:'你还好吗',scene:'日常对话',br:[['大丈夫','daijoubu','没事/不要紧'],['ですか','desu ka','吗']]},
+ {jp:'すみません',reading:'sumimasen',meaning:'不好意思',scene:'日常对话',br:[['すみません','sumimasen','不好意思/抱歉']]},
+ {jp:'ありがとうございます',reading:'arigatou gozaimasu',meaning:'谢谢',scene:'日常对话',br:[['ありがとう','arigatou','谢谢'],['ございます','gozaimasu','敬语“有”']]},
+ {jp:'お元気ですか',reading:'ogenki desu ka',meaning:'您身体好吗',scene:'问候',br:[['お','o','敬前缀'],['元気','genki','健康'],['ですか','desu ka','吗']]},
+ {jp:'また明日',reading:'mata ashita',meaning:'明天见',scene:'问候',br:[['また','mata','再'],['明日','ashita','明天']]},
+ {jp:'いってきます',reading:'ittekimasu',meaning:'我出门了',scene:'出门',br:[['いって','itte','去（て形）'],['きます','kimasu','来']],note:'出门时对家里人说'},
+ {jp:'いってらっしゃい',reading:'itterasshai',meaning:'路上小心',scene:'送别',br:[['いって','itte','去'],['らっしゃい','rasshai','敬语“来”']],note:'家人送出门时说'},
+ {jp:'ただいま',reading:'tadaima',meaning:'我回来了',scene:'回家',br:[['ただいま','tadaima','我回来了']]},
+ {jp:'おかえりなさい',reading:'okaerinasai',meaning:'欢迎回来',scene:'回家',br:[['おかえり','okaeri','回来'],['なさい','nasai','敬后缀']]},
+ {jp:'出身はどこですか',reading:'shusshin wa doko desu ka',meaning:'你来自哪里',scene:'自我介绍',br:[['出身','shusshin','出身'],['は','wa','主题'],['どこ','doko','哪里'],['ですか','desu ka','吗']]},
+ {jp:'趣味は何ですか',reading:'shumi wa nan desu ka',meaning:'你的爱好是什么',scene:'自我介绍',br:[['趣味','shumi','爱好'],['は','wa','主题'],['何','nan','什么'],['ですか','desu ka','吗']]},
+ {jp:'今年何歳ですか',reading:'kotoshi nansai desu ka',meaning:'你今年几岁',scene:'自我介绍',br:[['今年','kotoshi','今年'],['何','nan','几'],['歳','sai','岁'],['ですか','desu ka','吗']]},
+ {jp:'一つ',reading:'hitotsu',meaning:'一个',scene:'数字',br:[['一つ','hitotsu','一个（数物品）']]},
+ {jp:'二つ',reading:'futatsu',meaning:'两个',scene:'数字',br:[['二つ','futatsu','两个（数物品）']]},
+ {jp:'三つ',reading:'mittsu',meaning:'三个',scene:'数字',br:[['三つ','mittsu','三个（数物品）']]},
+ {jp:'百円',reading:'hyaku en',meaning:'一百日元',scene:'数字',br:[['百','hyaku','百'],['円','en','日元']]},
+ {jp:'千円',reading:'sen en',meaning:'一千日元',scene:'数字',br:[['千','sen','千'],['円','en','日元']]},
+ {jp:'もっと安いのはありますか',reading:'motto yasui no wa arimasu ka',meaning:'有更便宜的吗',scene:'购物',br:[['もっと','motto','更'],['安い','yasui','便宜'],['の','no','的'],['は','wa','主题'],['あります','arimasu','有'],['か','ka','吗']]},
+ {jp:'試着してもいいですか',reading:'shichaku shite mo ii desu ka',meaning:'可以试穿吗',scene:'购物',br:[['試着','shichaku','试穿'],['して','shite','做（て形）'],['も','mo','也'],['いい','ii','可以'],['ですか','desu ka','吗']]},
+ {jp:'カードで払えますか',reading:'kaado de haraemasu ka',meaning:'可以刷卡吗',scene:'购物',br:[['カード','kaado','卡'],['で','de','用'],['払え','haraemasu','付（可能）'],['ますか','masu ka','吗']]},
+ {jp:'レシートをお願いします',reading:'reshiito o onegaishimasu',meaning:'请给我收据',scene:'购物',br:[['レシート','reshiito','收据'],['を','o','宾格'],['お願い','onegai','请求'],['します','shimasu','做']]},
+ {jp:'お水をお願いします',reading:'o mizu o onegaishimasu',meaning:'请给我水',scene:'点餐',br:[['お水','o mizu','水（敬）'],['を','o','宾格'],['お願い','onegai','请求'],['します','shimasu','做']]},
+ {jp:'お会計をお願いします',reading:'o kaikei o onegaishimasu',meaning:'请结账',scene:'点餐',br:[['お会計','o kaikei','结账'],['を','o','宾格'],['お願い','onegai','请求'],['します','shimasu','做']]},
+ {jp:'お腹が空きました',reading:'onaka ga sakimashita',meaning:'我饿了',scene:'点餐',br:[['お腹','onaka','肚子'],['が','ga','主格'],['空き','saki','空'],['ました','mashita','了（敬）']]},
+ {jp:'これは何ですか',reading:'kore wa nan desu ka',meaning:'这是什么',scene:'点餐',br:[['これ','kore','这个'],['は','wa','主题'],['何','nan','什么'],['ですか','desu ka','吗']]},
+ {jp:'トイレはどこですか',reading:'toire wa doko desu ka',meaning:'洗手间在哪里',scene:'问路',br:[['トイレ','toire','洗手间'],['は','wa','主题'],['どこ','doko','哪里'],['ですか','desu ka','吗']]},
+ {jp:'駅は遠いですか',reading:'eki wa tooi desu ka',meaning:'车站远吗',scene:'问路',br:[['駅','eki','车站'],['は','wa','主题'],['遠い','tooi','远'],['ですか','desu ka','吗']]},
+ {jp:'ごちそうさま',reading:'gochisousama',meaning:'谢谢款待',scene:'点餐',br:[['ごちそう','gochisou','款待'],['さま','sama','样（敬）']],note:'吃完后说“我吃饱了/谢谢款待”'}
+];
+function defaultJapanese(){return{level:'N5',kana:{mastered:[],currentRow:0},words:{mastered:[],currentIndex:0},sentences:{mastered:[],currentIndex:0},logs:[],learnedDays:0,streak:0,lastStudyDate:'',targetDays:90};}
+function migrateJapanese(jp){
+ if(!jp||typeof jp!=='object'||Array.isArray(jp)) return defaultJapanese();
+ if(jp.dailySentenceIndex!==undefined&&!jp.kana){ // 旧版结构
+  const nd=defaultJapanese();
+  nd.logs=Array.isArray(jp.logs)?jp.logs:[];
+  nd.learnedDays=jp.learnedDays||0; nd.streak=jp.streak||0; nd.lastStudyDate=jp.lastStudyDate||'';
+  nd.targetDays=jp.targetDays||90; nd.level=jp.level||'N5';
+  return nd;
+ }
+ if(!jp.kana)jp.kana={mastered:[],currentRow:0};
+ if(!jp.words)jp.words={mastered:[],currentIndex:0};
+ if(!jp.sentences)jp.sentences={mastered:[],currentIndex:0};
+ if(!Array.isArray(jp.logs))jp.logs=[];
+ ['learnedDays','streak','targetDays'].forEach(function(k){ if(typeof jp[k]!=='number'||!isFinite(jp[k]))jp[k]=0; });
+ if(typeof jp.lastStudyDate!=='string')jp.lastStudyDate='';
+ return jp;
+}
 let state={
  tab:'home',
  records:DB.get('records',[]),
@@ -2023,7 +2180,7 @@ let state={
 
 if(!Array.isArray(state.accounts)||state.accounts.length===0){state.accounts=DEFAULT_ACCTS;DB.set('accounts',state.accounts)}
 if(!state.habits){state.habits=DEFAULT_HABITS;DB.set('habits',state.habits)}
-if(!state.japanese||typeof state.japanese!=='object'||Array.isArray(state.japanese)){state.japanese=defaultJapanese();DB.set('japanese',state.japanese)}
+state.japanese=migrateJapanese(state.japanese);DB.set('japanese',state.japanese);
 
 // ============ Data Migration ============
 function migrateData(){
@@ -2056,7 +2213,7 @@ function normalizeState(){
  if(!Array.isArray(state.habits)) state.habits=[];
  if(typeof state.habitLogs!=='object'||state.habitLogs===null||Array.isArray(state.habitLogs)) state.habitLogs={};
  if(typeof state.settings!=='object'||state.settings===null) state.settings={mediaGoal:4,filterCat:'',nonEssLimit:500,privacyOn:false};
- if(typeof state.japanese!=='object'||state.japanese===null||Array.isArray(state.japanese)) state.japanese=defaultJapanese();
+ if(typeof state.japanese!=='object'||state.japanese===null||Array.isArray(state.japanese)) state.japanese=defaultJapanese(); else state.japanese=migrateJapanese(state.japanese);
  if(typeof state.pointsLog!=='object'||!Array.isArray(state.pointsLog)) state.pointsLog=[];
 }
 migrateData();
@@ -4841,7 +4998,7 @@ function openSettings(){
   '<button class="btn-primary" onclick="saveSettings()">保存设置</button>'+
  '<div class="sec-title mt12"><div class="left" style="color:var(--hab)">报告</div></div><button class="btn-ghost" onclick="generateWeeklyReport()" style="width:100%;margin-bottom:8px">春日部新闻报（周报）</button><button class="btn-ghost" onclick="generateMonthlyReport()" style="width:100%;margin-bottom:8px">机智可爱田财政赤字报告（月报）</button>'+
  '<div class="sec-title"><div class="left" style="color:var(--expense)">数据管理</div></div><button class="btn-ghost" onclick="clearDemoData()" style="width:100%;margin-bottom:8px">清空示例数据</button><button class="btn-ghost" onclick="clearAllData()" style="width:100%;color:var(--expense);border-color:var(--expense)">清空所有数据</button><div id="backup-history"></div>'+
- '<div class="sec-title"><div class="left" style="color:#3B82C4">数据同步（连 Supabase 服务器 · 自动同步）</div><span style="font-size:10px;background:#E60012;color:#fff;padding:2px 8px;border-radius:6px;font-weight:700">v37</span></div>'
+ '<div class="sec-title"><div class="left" style="color:#3B82C4">数据同步（连 Supabase 服务器 · 自动同步）</div><span style="font-size:10px;background:#E60012;color:#fff;padding:2px 8px;border-radius:6px;font-weight:700">v38</span></div>'
 +'<div class="card-tight card mb8" style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:13px">连服务器自动同步（手机电脑共享）</span><button class="btn-ghost" id="supa-on-btn" onclick="supaToggleOn()" style="font-size:12px;padding:6px 14px;min-height:34px">'+(DB.get('sync_on',false)?'已开启':'已关闭')+'</button></div>'
 +'<div class="form-group"><label class="form-label">Supabase 项目 URL</label><input type="text" id="sync-url" value="'+hEsc(DB.get('sync_url','https://zmlkhnhjqcpzhywrgtiw.supabase.co'))+'" placeholder="https://xxxx.supabase.co"></div>'
 +'<div class="form-group"><label class="form-label">anon / public key</label><input type="text" id="sync-key" value="'+hEsc(DB.get('sync_key','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InptbGtobmhqcWNwemh5d3JndGl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYxMjY2NjcsImV4cCI6MjEwMTcwMjY2N30.hZnlONauB0y20wMEF7OG5kRn2uR2PCvcVEfrAE9FoVI'))+'" placeholder="eyJhbGciOi... 或 sb_publishable_..."></div>'
@@ -4971,88 +5128,73 @@ function applyNightMode(){
 // ============ Init ============
 // ============ 日语课 模块 ============
 function saveJp(){ try{ DB.set('japanese', state.japanese); }catch(e){} }
-function getDailySentence(){
+function saveJp(){ try{ DB.set('japanese', state.japanese); }catch(e){} }
+function speakJapanese(text, rate){
  try{
-  const arr=JAPANESE_SENTENCES;
-  const idx=((state.japanese.dailySentenceIndex%arr.length)+arr.length)%arr.length;
-  const s=arr[idx];
-  return {jp:s.jp, reading:s.reading, meaning:s.meaning, scene:s.scene, index:idx};
- }catch(e){ return {jp:'こんにちは',reading:'konnichiwa',meaning:'你好',scene:'白天见面',index:0}; }
-}
-function yesterdayStr(){ const d=new Date(); d.setDate(d.getDate()-1); return dateStr(d); }
-function rotateDailySentence(){
- try{
-  const jp=state.japanese; const today=todayStr();
-  if(jp._rotateDate!==today){
-   jp.dailySentenceIndex=(jp.dailySentenceIndex+1)%JAPANESE_SENTENCES.length;
-   jp._rotateDate=today; saveJp();
-  }
+  if(!('speechSynthesis' in window)){ toast('此浏览器不支持语音合成'); return; }
+  window.speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(text);
+  u.lang='ja-JP'; u.rate=(typeof rate==='number')?rate:0.85; u.pitch=1;
+  window.speechSynthesis.speak(u);
  }catch(e){}
 }
+function jpPitchMark(n){ if(n===0)return '⓪'; var c=['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩','⑪','⑫','⑬','⑭','⑮','⑯','⑰','⑱','⑲','⑳']; return c[n-1]||(''+n); }
+function jpKanaUnlocked(){ const all=jpKanaAll(); const need=all.filter(function(x){return x.row===0||x.row===1;}); const m=state.japanese.kana.mastered||[]; return need.length>0 && need.every(function(x){return m.indexOf(x.k)>=0;}); }
+function jpWordsUnlocked(){ return jpKanaUnlocked() && (state.japanese.words.mastered.length>=30); }
+function jpTodayPlan(){
+ const jp=state.japanese;
+ if((jp.kana.mastered.length||0) < jpKanaAll().length) return 'kana';
+ if((jp.words.mastered.length||0) < 30) return 'words';
+ if((jp.sentences.mastered.length||0) < JP_SENTENCES.length) return 'sentences';
+ return 'words';
+}
+function jpNextKana(){ const m=state.japanese.kana.mastered||[]; return jpKanaAll().find(function(x){return m.indexOf(x.k)<0;})||null; }
+function jpCurrentWord(){ const i=Math.min(state.japanese.words.currentIndex||0, JP_WORDS.length-1); return {idx:i, w:JP_WORDS[i]}; }
+function jpCurrentSentence(){ const i=Math.min(state.japanese.sentences.currentIndex||0, JP_SENTENCES.length-1); return {idx:i, s:JP_SENTENCES[i]}; }
+function yesterdayStr(){ const d=new Date(); d.setDate(d.getDate()-1); return dateStr(d); }
 function renderJpHomeCard(){
  try{
   const el=document.getElementById('jp-home-card'); if(!el)return;
-  const s=getDailySentence(); const jp=state.japanese;
-  const se=document.getElementById('jp-home-sentence');
-  if(se) se.innerHTML='<div style="font-size:18px;font-weight:700;color:#234">'+hEsc(s.jp)+'</div><div style="font-size:12px;color:#5a6b7a;margin-top:2px">'+hEsc(s.meaning)+'</div>';
-  const st=document.getElementById('jp-home-streak');
-  if(st) st.textContent='🔥 '+jp.streak+' 天';
+  const jp=state.japanese;
+  const km=(jp.kana.mastered||[]).length, wm=(jp.words.mastered||[]).length, sm=(jp.sentences.mastered||[]).length;
+  const plan=jpTodayPlan();
+  let content='';
+  if(plan==='kana'){ const k=jpNextKana(); content=k?('假名「'+k.k+'」('+k.r+')'):'假名已全部掌握 🎉'; }
+  else if(plan==='words'){ const c=jpCurrentWord(); content='单词「'+c.w[0]+'」('+c.w[1]+')'; }
+  else { const c=jpCurrentSentence(); content='句子「'+c.s.jp+'」'; }
+  const st=document.getElementById('jp-home-streak'); if(st) st.textContent='🔥 '+(jp.streak||0)+' 天';
+  const prog=document.getElementById('jp-home-prog'); if(prog) prog.innerHTML='五十音 '+km+'/'+jpKanaAll().length+' · 单词 '+wm+'/'+JP_WORDS.length+' · 句子 '+sm+'/'+JP_SENTENCES.length;
+  const ct=document.getElementById('jp-home-today'); if(ct) ct.textContent=content;
  }catch(e){}
 }
 function openJapanese(){ try{ renderJapanese(); openSubpage('subpage-japanese'); }catch(e){} }
 function renderJapanese(){
  try{
-  const jp=state.japanese; const s=getDailySentence(); const today=todayStr();
-  const done=jp.lastStudyDate===today;
-  const pct=Math.max(0,Math.min(100, Math.round(jp.learnedDays/jp.targetDays*100)));
-  const logsHtml=(jp.logs||[]).slice().reverse().map(function(l){
-   const icon=l.type==='sentence'?'📖':'✍️';
-   return '<div class="jp-log-item"><div class="jp-log-date">'+hEsc(l.date||'')+'</div><div class="jp-log-text">'+icon+' '+hEsc(l.text||'')+'</div></div>';
-  }).join('') || '<div class="empty-state"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg><p>还没有学习记录<br>从今日一句开始吧</p></div>';
-  const btn=done
-   ? '<button class="btn-primary" disabled style="background:#bbb;cursor:default">今日已完成 ✓</button>'
-   : '<button class="btn-primary" onclick="markTodayStudied()">今日已学 ✓</button>';
+  const jp=state.japanese; if(!window._jpTab)window._jpTab='today';
+  const km=(jp.kana.mastered||[]).length, wm=(jp.words.mastered||[]).length, sm=(jp.sentences.mastered||[]).length;
+  const pct=Math.max(0,Math.min(100, Math.round((jp.learnedDays||0)/(jp.targetDays||90)*100)));
+  const todayCount=(jp.logs||[]).filter(function(l){return l.date===todayStr() && (l.type==='kana'||l.type==='word'||l.type==='sentence');}).length;
+  const tabs=[['today','📅 今日'],['kana','🇯🇵 五十音'],['words','🔤 单词'],['sentences','💬 句子'],['logs','📝 日志']];
+  const tbar=tabs.map(function(t){return '<button class="jp-tab'+(window._jpTab===t[0]?' on':'')+'" onclick="setJpTab(\''+t[0]+'\')">'+t[1]+'</button>';}).join('');
   const body=document.getElementById('jp-body'); if(!body)return;
   body.innerHTML=
    '<div class="card jp-board">'+
-    '<div class="jp-level">当前等级 <b>'+hEsc(jp.level)+'</b> <span class="jp-level-tag">N5 入门</span></div>'+
+    '<div class="jp-level">等级 <b>'+hEsc(jp.level)+'</b> <span class="jp-level-tag">N5 引导式学习</span></div>'+
     '<div class="jp-progress"><div class="jp-bar"><div class="jp-bar-fill" style="width:'+pct+'%"></div></div>'+
-    '<div class="jp-progress-txt">已学习 '+jp.learnedDays+' 天 / 目标 '+jp.targetDays+' 天（'+pct+'%）</div></div>'+
-    '<div class="jp-streak">🔥 连续 '+jp.streak+' 天</div>'+
+    '<div class="jp-progress-txt">已学习 '+(jp.learnedDays||0)+' 天 / 目标 '+(jp.targetDays||90)+' 天（'+pct+'%）</div></div>'+
+    '<div class="jp-streak">🔥 连续 '+(jp.streak||0)+' 天　·　今日已学 '+todayCount+' 个</div>'+
+    '<div class="jp-mini">'+
+     '<div class="jp-mini-i"><div class="jp-mini-n">'+km+'/'+(jpKanaAll().length)+'</div><div class="jp-mini-l">五十音</div></div>'+
+     '<div class="jp-mini-i"><div class="jp-mini-n">'+wm+'/'+JP_WORDS.length+'</div><div class="jp-mini-l">单词</div></div>'+
+     '<div class="jp-mini-i"><div class="jp-mini-n">'+sm+'/'+JP_SENTENCES.length+'</div><div class="jp-mini-l">句子</div></div>'+
+    '</div>'+
    '</div>'+
-   '<div class="sec-title"><div class="left"><div class="dot" style="background:#2E7DD1"></div>今日一句</div></div>'+
-   '<div class="card jp-today">'+
-    '<div class="jp-jp">'+hEsc(s.jp)+'</div>'+
-    '<div class="jp-reading">'+hEsc(s.reading)+'</div>'+
-    '<div class="jp-meaning">'+hEsc(s.meaning)+'</div>'+
-    '<div class="jp-scene">🏷️ '+hEsc(s.scene)+'</div>'+
-    '<div style="margin-top:12px">'+btn+'</div>'+
-   '</div>'+
-   '<div class="sec-title"><div class="left"><div class="dot" style="background:#E8703A"></div>学习日志</div></div>'+
-   '<div class="card jp-logs">'+logsHtml+'</div>'+
-   '<div class="jp-input-row">'+
-    '<input type="text" id="jp-input" class="jp-input" placeholder="今天学到的日语（自由记录）" onkeydown="if(event.key===\'Enter\')submitJpInput()">'+
-    '<button class="btn-ghost" onclick="submitJpInput()">提交</button>'+
-   '</div>';
+   '<div class="jp-tabs">'+tbar+'</div>'+
+   '<div id="jp-tab-body"></div>';
+  renderJpTab(window._jpTab);
  }catch(e){ console.warn('[jp]',e); }
 }
-function markTodayStudied(){
- try{
-  const jp=state.japanese; const today=todayStr();
-  if(jp.lastStudyDate===today){ toast('今天已经学过啦 ✓'); return; }
-  const s=getDailySentence();
-  jp.learnedDays+=1;
-  const y=yesterdayStr();
-  if(jp.lastStudyDate===y) jp.streak+=1; else jp.streak=1;
-  jp.lastStudyDate=today;
-  jp.logs.push({date:today, text:s.jp+'（'+s.meaning+'）', type:'sentence'});
-  saveJp();
-  addJapaneseMediaRecord(s.jp, jp.learnedDays);
-  linkJapaneseHabit(s.jp);
-  renderJapanese(); renderMedia(); renderHabits(); renderToday();
-  toast('今日一句已学 ✓ 连续 '+jp.streak+' 天');
- }catch(e){ console.warn('[jp mark]',e); }
-}
+function setJpTab(t){ window._jpTab=t; renderJapanese(); }
 function submitJpInput(){
  try{
   const el=document.getElementById('jp-input'); if(!el)return;
@@ -5063,28 +5205,260 @@ function submitJpInput(){
   toast('记下了 ✓');
  }catch(e){}
 }
-function addJapaneseMediaRecord(sentenceJp, day){
+function renderJpTab(tab){
+ try{
+  const box=document.getElementById('jp-tab-body'); if(!box)return;
+  if(tab==='kana')return renderJpKana(box);
+  if(tab==='words')return renderJpWords(box);
+  if(tab==='sentences')return renderJpSentences(box);
+  if(tab==='logs')return renderJpLogs(box);
+  return renderJpToday(box);
+ }catch(e){}
+}
+function renderJpToday(box){
+ try{
+  const plan=jpTodayPlan();
+  let html='';
+  if(plan==='kana'){
+   const k=jpNextKana();
+   html='<div class="sec-title"><div class="left"><div class="dot" style="background:#2E7DD1"></div>今日学假名</div></div>'+
+    (k?('<div class="card jp-study">'+
+      '<div class="jp-big">'+k.k+'</div>'+
+      '<div class="jp-reading">'+k.r+'</div>'+
+      '<div class="jp-tip">👄 '+k.tip+'</div>'+
+      '<div class="jp-actions">'+
+       '<button class="btn-ghost" onclick="speakKana(\''+k.k+'\')">🔊 听发音</button>'+
+       '<button class="btn-primary" onclick="toggleKanaMastered(\''+k.k+'\')">✅ 已掌握</button>'+
+      '</div>'+
+      '<div class="jp-hint">掌握后进入下一假名 · 先学完あ行+か行才能解锁单词</div>'+
+     '</div>'):'<div class="card jp-study">🎉 五十音已全部掌握！去「单词」标签继续吧</div>');
+  }else if(plan==='words'){
+   const c=jpCurrentWord();
+   html='<div class="sec-title"><div class="left"><div class="dot" style="background:#2E7DD1"></div>今日学单词</div></div>'+
+    '<div class="card jp-study">'+
+     '<div class="jp-big">'+c.w[0]+'</div>'+
+     '<div class="jp-reading">'+c.w[1]+'　<span class="jp-pitch">'+jpPitchMark(c.w[2])+'</span></div>'+
+     '<div class="jp-meaning">'+c.w[3]+'</div>'+
+     '<div class="jp-scene">🏷️ '+(c.w[4]||'')+'</div>'+
+     '<div class="jp-actions">'+
+      '<button class="btn-ghost" onclick="speakWord(\''+c.w[0]+'\')">🔊 听发音</button>'+
+      '<button class="btn-ghost" onclick="jpWordRead('+c.idx+')">🔁 跟读一遍</button>'+
+      '<button class="btn-primary" onclick="jpWordMaster('+c.idx+')">✅ 能读出来了</button>'+
+     '</div>'+
+     '<div class="jp-readdots" id="jp-readdots"></div>'+
+     '<div class="jp-hint">连读 3 遍自动提示进入下一个 · 自己判断像不像</div>'+
+    '</div>';
+  }else{
+   const c=jpCurrentSentence();
+   html='<div class="sec-title"><div class="left"><div class="dot" style="background:#2E7DD1"></div>今日学句子</div></div>'+
+    '<div class="card jp-study">'+
+     '<div class="jp-big">'+c.s.jp+'</div>'+
+     '<div class="jp-reading">'+c.s.reading+'</div>'+
+     '<div class="jp-meaning">'+c.s.meaning+'</div>'+
+     '<div class="jp-scene">🏷️ '+(c.s.scene||'')+'</div>'+
+     (c.s.note?'<div class="jp-tip">💡 '+c.s.note+'</div>':'')+
+     '<div class="jp-br">'+c.s.br.map(function(b){return '<div class="jp-br-i"><b>'+b[0]+'</b> <span>'+b[1]+'</span> <i>'+b[2]+'</i></div>';}).join('')+'</div>'+
+     '<div class="jp-actions">'+
+      '<button class="btn-ghost" onclick="jpSentenceWords('+c.idx+')">🔊 逐词朗读</button>'+
+      '<button class="btn-ghost" onclick="jpSentenceFull('+c.idx+')">🔊 整句朗读</button>'+
+      '<button class="btn-primary" onclick="jpSentenceMaster('+c.idx+')">✅ 能读出来了</button>'+
+     '</div>'+
+    '</div>';
+  }
+  box.innerHTML=html;
+  if(plan==='words')renderJpReadDots();
+ }catch(e){ console.warn('[jp today]',e); }
+}
+function renderJpKana(box){
+ try{
+  const m=state.japanese.kana.mastered||[];
+  let rows=JP_KANA_ROWS.map(function(row){
+   let cells=row.items.map(function(it){
+    const on=m.indexOf(it[0])>=0;
+    return '<div class="jp-kana'+(on?' on':'')+'" onclick="speakKana(\''+it[0]+'\')">'+
+      '<div class="jp-kana-k">'+it[0]+'</div><div class="jp-kana-r">'+it[1]+'</div>'+
+      (on?'<div class="jp-kana-ok">✓</div>':'')+'</div>';
+   }).join('');
+   return '<div class="jp-kana-row"><div class="jp-kana-label">'+row.label+'</div><div class="jp-kana-cells">'+cells+'</div></div>';
+  }).join('');
+  const nnOn=m.indexOf(JP_NN.k)>=0;
+  rows+='<div class="jp-kana-row"><div class="jp-kana-label">拨音</div><div class="jp-kana-cells"><div class="jp-kana'+(nnOn?' on':'')+'" onclick="speakKana(\''+JP_NN.k+'\')"><div class="jp-kana-k">'+JP_NN.k+'</div><div class="jp-kana-r">'+JP_NN.r+'</div>'+(nnOn?'<div class="jp-kana-ok">✓</div>':'')+'</div></div></div>';
+  const next=jpNextKana();
+  const nextHtml=next?('<div class="card jp-study" style="margin-top:12px">'+
+    '<div class="jp-small">接下来练习</div>'+
+    '<div class="jp-big">'+next.k+'</div>'+
+    '<div class="jp-reading">'+next.r+'</div>'+
+    '<div class="jp-tip">👄 '+next.tip+'</div>'+
+    '<div class="jp-actions"><button class="btn-ghost" onclick="speakKana(\''+next.k+'\')">🔊 听发音</button><button class="btn-primary" onclick="toggleKanaMastered(\''+next.k+'\')">✅ 已掌握</button></div>'+
+   '</div>'):'<div class="card jp-study" style="margin-top:12px">🎉 五十音全部掌握！</div>';
+  box.innerHTML='<div class="sec-title"><div class="left"><div class="dot" style="background:#2E7DD1"></div>五十音图（点卡片听发音）</div></div>'+
+   '<div class="card"><div class="jp-progress"><div class="jp-bar"><div class="jp-bar-fill" style="width:'+Math.round(m.length/jpKanaAll().length*100)+'%"></div></div><div class="jp-progress-txt">已掌握 '+m.length+' / '+jpKanaAll().length+' 个</div></div></div>'+
+   '<div class="jp-kana-table">'+rows+'</div>'+nextHtml;
+ }catch(e){ console.warn('[jp kana]',e); }
+}
+function renderJpWords(box){
+ try{
+  if(!jpKanaUnlocked()){
+   box.innerHTML='<div class="card jp-lock">🔒 先掌握 <b>あ行 + か行</b> 才能解锁单词学习<br><span style="font-size:12px;opacity:.7">单词需要假名基础哦</span></div>';
+   return;
+  }
+  const c=jpCurrentWord();
+  box.innerHTML='<div class="sec-title"><div class="left"><div class="dot" style="background:#2E7DD1"></div>单词学习（'+(c.idx+1)+'/'+JP_WORDS.length+'）</div></div>'+
+   '<div class="card jp-study">'+
+    '<div class="jp-big">'+c.w[0]+'</div>'+
+    '<div class="jp-reading">'+c.w[1]+'　<span class="jp-pitch">'+jpPitchMark(c.w[2])+'</span></div>'+
+    '<div class="jp-meaning">'+c.w[3]+'</div>'+
+    '<div class="jp-scene">🏷️ '+(c.w[4]||'')+'</div>'+
+    '<div class="jp-actions">'+
+     '<button class="btn-ghost" onclick="speakWord(\''+c.w[0]+'\')">🔊 听发音</button>'+
+     '<button class="btn-ghost" onclick="jpWordRead('+c.idx+')">🔁 跟读一遍</button>'+
+     '<button class="btn-primary" onclick="jpWordMaster('+c.idx+')">✅ 能读出来了</button>'+
+    '</div>'+
+    '<div class="jp-readdots" id="jp-readdots"></div>'+
+    '<div class="jp-hint">连读 3 遍自动提示进入下一个 · 自己判断像不像</div>'+
+   '</div>'+
+   '<div class="jp-actions" style="margin-top:10px"><button class="btn-ghost" onclick="jpWordPrev()">← 上一个</button><button class="btn-ghost" onclick="jpWordNext()">下一个 →</button></div>';
+  renderJpReadDots();
+ }catch(e){ console.warn('[jp words]',e); }
+}
+function renderJpSentences(box){
+ try{
+  if(!jpWordsUnlocked()){
+   box.innerHTML='<div class="card jp-lock">🔒 先掌握 <b>30 个单词</b> 才能解锁句子学习<br><span style="font-size:12px;opacity:.7">单词已掌握 '+(state.japanese.words.mastered.length)+'/100</span></div>';
+   return;
+  }
+  const c=jpCurrentSentence();
+  box.innerHTML='<div class="sec-title"><div class="left"><div class="dot" style="background:#2E7DD1"></div>句子学习（'+(c.idx+1)+'/'+JP_SENTENCES.length+'）</div></div>'+
+   '<div class="card jp-study">'+
+    '<div class="jp-big">'+c.s.jp+'</div>'+
+    '<div class="jp-reading">'+c.s.reading+'</div>'+
+    '<div class="jp-meaning">'+c.s.meaning+'</div>'+
+    '<div class="jp-scene">🏷️ '+(c.s.scene||'')+'</div>'+
+    (c.s.note?'<div class="jp-tip">💡 '+c.s.note+'</div>':'')+
+    '<div class="jp-br">'+c.s.br.map(function(b){return '<div class="jp-br-i"><b>'+b[0]+'</b> <span>'+b[1]+'</span> <i>'+b[2]+'</i></div>';}).join('')+'</div>'+
+    '<div class="jp-actions">'+
+     '<button class="btn-ghost" onclick="jpSentenceWords('+c.idx+')">🔊 逐词朗读</button>'+
+     '<button class="btn-ghost" onclick="jpSentenceFull('+c.idx+')">🔊 整句朗读</button>'+
+     '<button class="btn-primary" onclick="jpSentenceMaster('+c.idx+')">✅ 能读出来了</button>'+
+    '</div>'+
+   '</div>'+
+   '<div class="jp-actions" style="margin-top:10px"><button class="btn-ghost" onclick="jpSentencePrev()">← 上一个</button><button class="btn-ghost" onclick="jpSentenceNext()">下一个 →</button></div>';
+ }catch(e){ console.warn('[jp sentences]',e); }
+}
+function renderJpLogs(box){
+ try{
+  const logsHtml=(state.japanese.logs||[]).slice().reverse().map(function(l){
+   const icon=l.type==='sentence'?'💬':(l.type==='word'?'🔤':(l.type==='kana'?'🇯🇵':'✍️'));
+   return '<div class="jp-log-item"><div class="jp-log-date">'+hEsc(l.date||'')+'</div><div class="jp-log-text">'+icon+' '+hEsc(l.text||'')+'</div></div>';
+  }).join('') || '<div class="empty-state"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg><p>还没有学习记录<br>从今日任务开始吧</p></div>';
+  box.innerHTML='<div class="sec-title"><div class="left"><div class="dot" style="background:#E8703A"></div>学习日志</div></div><div class="card jp-logs">'+logsHtml+'</div>'+
+   '<div class="jp-input-row"><input type="text" id="jp-input" class="jp-input" placeholder="今天学到的日语（自由记录）" onkeydown="if(event.key===\'Enter\')submitJpInput()"><button class="btn-ghost" onclick="submitJpInput()">提交</button></div>';
+ }catch(e){ console.warn('[jp logs]',e); }
+}
+function speakKana(k){ speakJapanese(k); }
+function speakWord(jp){ speakJapanese(jp); }
+function toggleKanaMastered(k){
+ try{
+  const m=state.japanese.kana.mastered; const i=m.indexOf(k);
+  if(i>=0)m.splice(i,1); else m.push(k);
+  saveJp(); renderJapanese(); renderJpHomeCard(); renderToday();
+ }catch(e){}
+}
+function renderJpReadDots(){
+ try{
+  const el=document.getElementById('jp-readdots'); if(!el)return;
+  const n=(window._jpReads&&window._jpReads[state.japanese.words.currentIndex])||0;
+  let s=''; for(let i=0;i<3;i++) s+='<span class="jp-dot'+(i<n?' on':'')+'"></span>';
+  el.innerHTML='跟读进度 '+s;
+ }catch(e){}
+}
+function jpWordRead(idx){
+ try{
+  const w=JP_WORDS[idx]; speakWord(w[0]);
+  window._jpReads=window._jpReads||{};
+  const n=(window._jpReads[idx]||0)+1; window._jpReads[idx]=n;
+  renderJpReadDots();
+  if(n>=3) toast('读够 3 遍啦，点“能读出来了”');
+ }catch(e){}
+}
+function jpWordMaster(idx){
+ try{
+  const w=JP_WORDS[idx]; const ms=state.japanese.words.mastered;
+  if(ms.indexOf(idx)<0)ms.push(idx);
+  let ni=idx+1; while(ni<JP_WORDS.length && ms.indexOf(ni)>=0)ni++;
+  if(ni<JP_WORDS.length)state.japanese.words.currentIndex=ni;
+  saveJp();
+  markJpItem('word', '单词「'+w[0]+'」');
+ }catch(e){}
+}
+function jpWordPrev(){ if(state.japanese.words.currentIndex>0){state.japanese.words.currentIndex--; saveJp(); renderJapanese();} }
+function jpWordNext(){ if(state.japanese.words.currentIndex<JP_WORDS.length-1){state.japanese.words.currentIndex++; saveJp(); renderJapanese();} }
+function jpSentenceWords(idx){
+ try{
+  const s=JP_SENTENCES[idx];
+  if(!('speechSynthesis' in window)){ toast('此浏览器不支持语音'); return; }
+  window.speechSynthesis.cancel();
+  s.br.forEach(function(b, i){
+   setTimeout(function(){ try{ const u=new SpeechSynthesisUtterance(b[0]); u.lang='ja-JP'; u.rate=0.6; u.pitch=1; window.speechSynthesis.speak(u); }catch(e){} }, i*900);
+  });
+ }catch(e){}
+}
+function jpSentenceFull(idx){ const s=JP_SENTENCES[idx]; speakJapanese(s.jp, 0.9); }
+function jpSentenceMaster(idx){
+ try{
+  const s=JP_SENTENCES[idx]; const ms=state.japanese.sentences.mastered;
+  if(ms.indexOf(idx)<0)ms.push(idx);
+  let ni=idx+1; while(ni<JP_SENTENCES.length && ms.indexOf(ni)>=0)ni++;
+  if(ni<JP_SENTENCES.length)state.japanese.sentences.currentIndex=ni;
+  saveJp();
+  markJpItem('sentence', '句子「'+s.jp+'」');
+ }catch(e){}
+}
+function jpSentencePrev(){ if(state.japanese.sentences.currentIndex>0){state.japanese.sentences.currentIndex--; saveJp(); renderJapanese();} }
+function jpSentenceNext(){ if(state.japanese.sentences.currentIndex<JP_SENTENCES.length-1){state.japanese.sentences.currentIndex++; saveJp(); renderJapanese();} }
+function markJpItem(kind, label){
+ try{
+  const jp=state.japanese; const today=todayStr();
+  jp.logs=jp.logs||[];
+  jp.logs.push({date:today, text:label, type:kind});
+  let firstOfDay=false;
+  if(jp.lastStudyDate!==today){
+   firstOfDay=true;
+   jp.learnedDays=(jp.learnedDays||0)+1;
+   jp.streak=(jp.lastStudyDate===yesterdayStr())?(jp.streak||0)+1:1;
+   jp.lastStudyDate=today;
+  }
+  saveJp();
+  if(firstOfDay){
+   addJapaneseMediaRecord(kind, label, jp.learnedDays);
+   linkJapaneseHabit(label);
+  }
+  renderJapanese(); renderMedia(); renderHabits(); renderToday(); renderJpHomeCard();
+  toast(firstOfDay?('已学会 ✓ 连续 '+(jp.streak||0)+' 天'):'已记录 ✓');
+ }catch(e){ console.warn('[jp mark]',e); }
+}
+function addJapaneseMediaRecord(kind, label, day){
  try{
   state.media=state.media||[];
   state.media.push({
-   id:uid(), title:'日语学习 Day '+day+'：'+sentenceJp, type:'book', genres:[],
+   id:uid(), title:'日语学习 Day '+day+'：'+label, type:'book', genres:[],
    rating:0, tags:['日语学习'], review:'', status:'done', cover:'', craving:3,
    date:todayStr(), ts:Date.now(), linkExplore:'', linkRecord:''
   });
   DB.set('media', state.media);
  }catch(e){}
 }
-function linkJapaneseHabit(sentenceJp){
+function linkJapaneseHabit(label){
  try{
   const today=todayStr();
   const habit=state.habits.find(function(h){return h.name==='学日语';});
   if(habit){
    state.habitLogs[today]=state.habitLogs[today]||{};
-   state.habitLogs[today][habit.id]={val:1, note:'今日一句：'+sentenceJp, t:Date.now(), dur:0};
+   state.habitLogs[today][habit.id]={val:1, note:'日语学习：'+label, t:Date.now(), dur:0};
    DB.set('habitLogs', state.habitLogs);
    renderHabits(); renderToday();
   }else{
-   confirmBox('要不要创建「学日语」习惯？','每天 5 分钟就行～创建后，每天点「今日已学」会自动帮你打卡哦。',
+   confirmBox('要不要创建「学日语」习惯？','每天 5 分钟就行～创建后，每天完成日语学习会自动帮你打卡哦。',
     '<div class="cb-row"><button class="btn-ghost" onclick="closeConfirm()">不用了</button><button class="btn-primary" onclick="createJapaneseHabit()">好呀，创建</button></div>');
   }
  }catch(e){}
@@ -5097,7 +5471,7 @@ function createJapaneseHabit(){
   state.habits=state.habits||[]; state.habits.push(habit);
   DB.set('habits', state.habits);
   state.habitLogs[today]=state.habitLogs[today]||{};
-  state.habitLogs[today][habit.id]={val:1, note:'今日一句：已创建并打卡', t:Date.now(), dur:0};
+  state.habitLogs[today][habit.id]={val:1, note:'日语学习：已创建并打卡', t:Date.now(), dur:0};
   DB.set('habitLogs', state.habitLogs);
   renderHabits(); renderToday(); renderJapanese();
   toast('已创建「学日语」习惯并打卡 ✓');
@@ -5109,7 +5483,6 @@ function init(){
  if(isFirstTime&&!DB.get('cleared')){ try{ loadDemoData(); }catch(e){ console.warn('[loadDemo]',e); } }
  applyNightMode();
  applyPrivacy();
- rotateDailySentence();
  recommendMedia();
  try{renderTab('home');renderToday();}catch(e){console.error('[init] home render:',e);}
  checkAwards();
@@ -6040,7 +6413,7 @@ function _slimValue(k,val,cap){
 
 // 收集本地白名单数据（全量，作为上传合并基底）。返回字符串包 {key: jsonString}
 function collectSyncData(){
- var pkg={_ts:new Date().toISOString(),_v:37}, total=0, changed=0, skipped=[];
+ var pkg={_ts:new Date().toISOString(),_v:38}, total=0, changed=0, skipped=[];
  var whitelistKeys=Object.keys(SYNC_WHITELIST);
  for(var wi=0;wi<whitelistKeys.length;wi++){
   var k=whitelistKeys[wi];
