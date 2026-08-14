@@ -1018,6 +1018,29 @@ display:flex;align-items:center;justify-content:space-between;margin-bottom:12px
 }
 @media(max-width:768px){button,.btn-primary,.btn-ghost,.btn-secondary,.icon-btn,.cat-btn,.tag-chip,.tab-item,.mine-item,[onclick]{min-height:44px;min-width:44px}
 .shin-pop{bottom:calc(72px + var(--safe))}}
+/* ===== 日语课模块 ===== */
+.jp-board{background:linear-gradient(135deg,#EAF3FF,#F6FAFF)}
+.jp-level{font-size:14px;color:var(--text);margin-bottom:10px}
+.jp-level b{color:#2E7DD1}
+.jp-level-tag{display:inline-block;margin-left:6px;font-size:10px;background:#D9ECFF;color:#2E7DD1;padding:2px 8px;border-radius:10px;font-weight:600}
+.jp-progress{margin-top:4px}
+.jp-bar{height:10px;background:#E3E8EF;border-radius:6px;overflow:hidden}
+.jp-bar-fill{height:100%;background:linear-gradient(90deg,#2E7DD1,#4DA3FF);border-radius:6px;transition:width .4s ease}
+.jp-progress-txt{font-size:12px;color:var(--text3);margin-top:6px}
+.jp-streak{margin-top:8px;font-size:14px;font-weight:700;color:#E8703A}
+.jp-today{text-align:center;background:linear-gradient(135deg,#FFF7F0,#FFFDFA)}
+.jp-jp{font-size:26px;font-weight:800;color:var(--text);letter-spacing:1px}
+.jp-reading{font-size:15px;color:#5a6b7a;margin-top:4px;font-style:italic}
+.jp-meaning{font-size:16px;color:#234;margin-top:6px;font-weight:600}
+.jp-scene{display:inline-block;margin-top:8px;font-size:12px;background:#FFEEDD;color:#C97B1F;padding:3px 10px;border-radius:10px}
+.jp-logs{max-height:320px;overflow-y:auto}
+.jp-log-item{border-bottom:1px solid #eee;padding:8px 2px;display:flex;gap:8px;align-items:flex-start}
+.jp-log-item:last-child{border-bottom:none}
+.jp-log-date{font-size:11px;color:var(--text3);flex:0 0 76px}
+.jp-log-text{font-size:13px;color:var(--text);flex:1;word-break:break-word}
+.jp-input-row{display:flex;gap:8px;margin-top:10px}
+.jp-input{flex:1;border:1px solid #e0e0e0;border-radius:10px;padding:10px 12px;font-size:14px;background:#fff;color:var(--text)}
+.jp-input:focus{outline:none;border-color:#2E7DD1}
 </style>
 <script src="https://beacon.cdn.qq.com/sdk/4.5.9/beacon_web.min.js"></script>
 <script>
@@ -1322,6 +1345,11 @@ align-items:center;justify-content:center;font-size:13px}
 <div class="today-figures" id="today-figures"></div>
 <!-- 书影音推荐（首页联动） -->
 <div id="home-reco-slot"></div>
+<!-- 今日日语 卡片 -->
+<div class="today-card" id="jp-home-card" onclick="openJapanese()" style="cursor:pointer;background:linear-gradient(135deg,#E3F0FF,#D9ECFF);color:#234">
+<h3>📚 今日日语 <span id="jp-home-streak" style="float:right;font-size:11px;font-weight:600;color:#2E7DD1"></span></h3>
+<div id="jp-home-sentence"></div>
+</div>
 <!-- Today's Urgent -->
 <div class="today-card" id="today-card">
 <h3>
@@ -1431,6 +1459,16 @@ align-items:center;justify-content:center;font-size:13px}
 </div>
 <div class="card" id="cert-wall"></div>
 </div>
+</div>
+
+<!-- ====== 日语课 二级页 ====== -->
+<div class="subpage" id="subpage-japanese">
+<div class="subpage-head">
+<button class="sp-back" onclick="closeSubpage('subpage-japanese')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg></button>
+<h2>📚 小新的日语课</h2>
+<div style="width:38px"></div>
+</div>
+<div class="subpage-body" id="jp-body" style="padding-bottom:calc(20px + var(--safe))"></div>
 </div>
 
 <!-- ====== 购物 ====== -->
@@ -1579,6 +1617,10 @@ align-items:center;justify-content:center;font-size:13px}
 <div class="mine-item" onclick="openAnnivSub()">
 <div class="mi-ic" style="background:#FFD7D7"><svg viewBox="0 0 24 24" fill="none" stroke="#E60012" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg></div>
 <div class="mi-tx"><div class="mi-t">📅 纪念日闹钟</div><div class="mi-s" id="mine-anniv-sub">小新正在睡大觉</div></div>
+</div>
+<div class="mine-item" onclick="openJapanese()">
+<div class="mi-ic" style="background:#D9ECFF"><svg viewBox="0 0 24 24" fill="none" stroke="#2E7DD1" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 010 20M12 2a15 15 0 000 20"/></svg></div>
+<div class="mi-tx"><div class="mi-t">📚 小新的日语课</div><div class="mi-s" id="mine-jp-sub">每天一句，积少成多</div></div>
 </div>
 <div class="mine-item" onclick="openSettings()">
 <div class="mi-ic" style="background:#EDEAE2"><svg viewBox="0 0 24 24" fill="none" stroke="#6B5B4F" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v4m0 12v4M22 12h-4M6 12H2"/></svg></div>
@@ -1895,6 +1937,59 @@ function DEMO_MEDIA(){
 }
 
 // ============ State ============
+// ============ 日语课 内置语料（N5 日常用语 50 句） ============
+const JAPANESE_SENTENCES=[
+ {jp:'こんにちは',reading:'konnichiwa',meaning:'你好',scene:'白天见面'},
+ {jp:'おはようございます',reading:'ohayou gozaimasu',meaning:'早上好',scene:'早晨见面'},
+ {jp:'こんばんは',reading:'konbanwa',meaning:'晚上好',scene:'傍晚见面'},
+ {jp:'さようなら',reading:'sayounara',meaning:'再见',scene:'离别'},
+ {jp:'おやすみなさい',reading:'oyasuminasai',meaning:'晚安',scene:'睡前'},
+ {jp:'はじめまして',reading:'hajimemashite',meaning:'初次见面',scene:'自我介绍'},
+ {jp:'よろしくお願いします',reading:'yoroshiku onegaishimasu',meaning:'请多关照',scene:'自我介绍'},
+ {jp:'私の名前は〜です',reading:'watashi no namae wa ~ desu',meaning:'我的名字是〜',scene:'自我介绍'},
+ {jp:'〜時です',reading:'~ ji desu',meaning:'现在是〜点',scene:'时间'},
+ {jp:'〜分です',reading:'~ fun desu',meaning:'现在是〜分',scene:'时间'},
+ {jp:'何時ですか',reading:'nan ji desu ka',meaning:'现在几点了',scene:'问时间'},
+ {jp:'いくらですか',reading:'ikura desu ka',meaning:'多少钱',scene:'购物'},
+ {jp:'これをください',reading:'kore o kudasai',meaning:'请给我这个',scene:'购物'},
+ {jp:'〜はありますか',reading:'~ wa arimasu ka',meaning:'有〜吗',scene:'购物'},
+ {jp:'メニューをお願いします',reading:'menyuu o onegaishimasu',meaning:'请给我菜单',scene:'点餐'},
+ {jp:'〜をお願いします',reading:'~ o onegaishimasu',meaning:'我要〜',scene:'点餐'},
+ {jp:'おいしいです',reading:'oishii desu',meaning:'很好吃',scene:'点餐'},
+ {jp:'〜はどこですか',reading:'~ wa doko desu ka',meaning:'〜在哪里',scene:'问路'},
+ {jp:'どうやって行きますか',reading:'dou yatte ikimasu ka',meaning:'怎么去',scene:'问路'},
+ {jp:'助けてください',reading:'tasukete kudasai',meaning:'请帮帮我',scene:'请求帮助'},
+ {jp:'〜てもいいですか',reading:'~ te mo ii desu ka',meaning:'可以〜吗',scene:'请求帮助'},
+ {jp:'元気ですか',reading:'genki desu ka',meaning:'你好吗',scene:'日常对话'},
+ {jp:'大丈夫ですか',reading:'daijoubu desu ka',meaning:'你还好吗',scene:'日常对话'},
+ {jp:'すみません',reading:'sumimasen',meaning:'不好意思',scene:'日常对话'},
+ {jp:'ありがとうございます',reading:'arigatou gozaimasu',meaning:'谢谢',scene:'日常对话'},
+ {jp:'お元気ですか',reading:'ogenki desu ka',meaning:'您身体好吗',scene:'问候'},
+ {jp:'また明日',reading:'mata ashita',meaning:'明天见',scene:'问候'},
+ {jp:'いってきます',reading:'ittekimasu',meaning:'我出门了',scene:'出门'},
+ {jp:'いってらっしゃい',reading:'itterasshai',meaning:'路上小心',scene:'送别'},
+ {jp:'ただいま',reading:'tadaima',meaning:'我回来了',scene:'回家'},
+ {jp:'おかえりなさい',reading:'okaerinasai',meaning:'欢迎回来',scene:'回家'},
+ {jp:'出身はどこですか',reading:'shusshin wa doko desu ka',meaning:'你来自哪里',scene:'自我介绍'},
+ {jp:'趣味は何ですか',reading:'shumi wa nan desu ka',meaning:'你的爱好是什么',scene:'自我介绍'},
+ {jp:'今年何歳ですか',reading:'kotoshi nansai desu ka',meaning:'你今年几岁',scene:'自我介绍'},
+ {jp:'一つ',reading:'hitotsu',meaning:'一个',scene:'数字'},
+ {jp:'二つ',reading:'futatsu',meaning:'两个',scene:'数字'},
+ {jp:'三つ',reading:'mittsu',meaning:'三个',scene:'数字'},
+ {jp:'百円',reading:'hyaku en',meaning:'一百日元',scene:'数字'},
+ {jp:'千円',reading:'sen en',meaning:'一千日元',scene:'数字'},
+ {jp:'もっと安いのはありますか',reading:'motto yasui no wa arimasu ka',meaning:'有更便宜的吗',scene:'购物'},
+ {jp:'試着してもいいですか',reading:'shichaku shite mo ii desu ka',meaning:'可以试穿吗',scene:'购物'},
+ {jp:'カードで払えますか',reading:'kaado de haraemasu ka',meaning:'可以刷卡吗',scene:'购物'},
+ {jp:'レシートをお願いします',reading:'reshiito o onegaishimasu',meaning:'请给我收据',scene:'购物'},
+ {jp:'お水をお願いします',reading:'o mizu o onegaishimasu',meaning:'请给我水',scene:'点餐'},
+ {jp:'お会計をお願いします',reading:'o kaikei o onegaishimasu',meaning:'请结账',scene:'点餐'},
+ {jp:'お腹が空きました',reading:'onaka ga sakimashita',meaning:'我饿了',scene:'点餐'},
+ {jp:'これは何ですか',reading:'kore wa nan desu ka',meaning:'这是什么',scene:'点餐'},
+ {jp:'トイレはどこですか',reading:'toire wa doko desu ka',meaning:'洗手间在哪里',scene:'问路'},
+ {jp:'駅は遠いですか',reading:'eki wa tooi desu ka',meaning:'车站远吗',scene:'问路'}
+];
+function defaultJapanese(){return{level:'N5',targetDays:90,learnedDays:0,dailySentenceIndex:0,logs:[],lastStudyDate:'',streak:0,_rotateDate:todayStr()};}
 let state={
  tab:'home',
  records:DB.get('records',[]),
@@ -1920,6 +2015,7 @@ let state={
  lastInteraction:DB.get('lastInteraction',Date.now()),
  shinAwayUntil:DB.get('shinAwayUntil',0),
  tasks:DB.get('tasks',[]),
+ japanese:DB.get('japanese',null),
  certificates:DB.get('certificates',[]),
  contactTags:DB.get('contactTags',[]),
  workFilter:DB.get('workFilter','all'),
@@ -1927,6 +2023,7 @@ let state={
 
 if(!Array.isArray(state.accounts)||state.accounts.length===0){state.accounts=DEFAULT_ACCTS;DB.set('accounts',state.accounts)}
 if(!state.habits){state.habits=DEFAULT_HABITS;DB.set('habits',state.habits)}
+if(!state.japanese||typeof state.japanese!=='object'||Array.isArray(state.japanese)){state.japanese=defaultJapanese();DB.set('japanese',state.japanese)}
 
 // ============ Data Migration ============
 function migrateData(){
@@ -1959,6 +2056,7 @@ function normalizeState(){
  if(!Array.isArray(state.habits)) state.habits=[];
  if(typeof state.habitLogs!=='object'||state.habitLogs===null||Array.isArray(state.habitLogs)) state.habitLogs={};
  if(typeof state.settings!=='object'||state.settings===null) state.settings={mediaGoal:4,filterCat:'',nonEssLimit:500,privacyOn:false};
+ if(typeof state.japanese!=='object'||state.japanese===null||Array.isArray(state.japanese)) state.japanese=defaultJapanese();
  if(typeof state.pointsLog!=='object'||!Array.isArray(state.pointsLog)) state.pointsLog=[];
 }
 migrateData();
@@ -2187,6 +2285,7 @@ function renderToday(){
  renderHomeSummary();
  renderTodayFigures();
  renderUrgentItems();
+ renderJpHomeCard();
  renderTimeline();
  renderWorkHomeHint();
  checkEveningReminder();
@@ -4742,7 +4841,7 @@ function openSettings(){
   '<button class="btn-primary" onclick="saveSettings()">保存设置</button>'+
  '<div class="sec-title mt12"><div class="left" style="color:var(--hab)">报告</div></div><button class="btn-ghost" onclick="generateWeeklyReport()" style="width:100%;margin-bottom:8px">春日部新闻报（周报）</button><button class="btn-ghost" onclick="generateMonthlyReport()" style="width:100%;margin-bottom:8px">机智可爱田财政赤字报告（月报）</button>'+
  '<div class="sec-title"><div class="left" style="color:var(--expense)">数据管理</div></div><button class="btn-ghost" onclick="clearDemoData()" style="width:100%;margin-bottom:8px">清空示例数据</button><button class="btn-ghost" onclick="clearAllData()" style="width:100%;color:var(--expense);border-color:var(--expense)">清空所有数据</button><div id="backup-history"></div>'+
- '<div class="sec-title"><div class="left" style="color:#3B82C4">数据同步（连 Supabase 服务器 · 自动同步）</div><span style="font-size:10px;background:#E60012;color:#fff;padding:2px 8px;border-radius:6px;font-weight:700">v36</span></div>'
+ '<div class="sec-title"><div class="left" style="color:#3B82C4">数据同步（连 Supabase 服务器 · 自动同步）</div><span style="font-size:10px;background:#E60012;color:#fff;padding:2px 8px;border-radius:6px;font-weight:700">v37</span></div>'
 +'<div class="card-tight card mb8" style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:13px">连服务器自动同步（手机电脑共享）</span><button class="btn-ghost" id="supa-on-btn" onclick="supaToggleOn()" style="font-size:12px;padding:6px 14px;min-height:34px">'+(DB.get('sync_on',false)?'已开启':'已关闭')+'</button></div>'
 +'<div class="form-group"><label class="form-label">Supabase 项目 URL</label><input type="text" id="sync-url" value="'+hEsc(DB.get('sync_url','https://zmlkhnhjqcpzhywrgtiw.supabase.co'))+'" placeholder="https://xxxx.supabase.co"></div>'
 +'<div class="form-group"><label class="form-label">anon / public key</label><input type="text" id="sync-key" value="'+hEsc(DB.get('sync_key','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InptbGtobmhqcWNwemh5d3JndGl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYxMjY2NjcsImV4cCI6MjEwMTcwMjY2N30.hZnlONauB0y20wMEF7OG5kRn2uR2PCvcVEfrAE9FoVI'))+'" placeholder="eyJhbGciOi... 或 sb_publishable_..."></div>'
@@ -4870,11 +4969,147 @@ function applyNightMode(){
 }
 
 // ============ Init ============
+// ============ 日语课 模块 ============
+function saveJp(){ try{ DB.set('japanese', state.japanese); }catch(e){} }
+function getDailySentence(){
+ try{
+  const arr=JAPANESE_SENTENCES;
+  const idx=((state.japanese.dailySentenceIndex%arr.length)+arr.length)%arr.length;
+  const s=arr[idx];
+  return {jp:s.jp, reading:s.reading, meaning:s.meaning, scene:s.scene, index:idx};
+ }catch(e){ return {jp:'こんにちは',reading:'konnichiwa',meaning:'你好',scene:'白天见面',index:0}; }
+}
+function yesterdayStr(){ const d=new Date(); d.setDate(d.getDate()-1); return dateStr(d); }
+function rotateDailySentence(){
+ try{
+  const jp=state.japanese; const today=todayStr();
+  if(jp._rotateDate!==today){
+   jp.dailySentenceIndex=(jp.dailySentenceIndex+1)%JAPANESE_SENTENCES.length;
+   jp._rotateDate=today; saveJp();
+  }
+ }catch(e){}
+}
+function renderJpHomeCard(){
+ try{
+  const el=document.getElementById('jp-home-card'); if(!el)return;
+  const s=getDailySentence(); const jp=state.japanese;
+  const se=document.getElementById('jp-home-sentence');
+  if(se) se.innerHTML='<div style="font-size:18px;font-weight:700;color:#234">'+hEsc(s.jp)+'</div><div style="font-size:12px;color:#5a6b7a;margin-top:2px">'+hEsc(s.meaning)+'</div>';
+  const st=document.getElementById('jp-home-streak');
+  if(st) st.textContent='🔥 '+jp.streak+' 天';
+ }catch(e){}
+}
+function openJapanese(){ try{ renderJapanese(); openSubpage('subpage-japanese'); }catch(e){} }
+function renderJapanese(){
+ try{
+  const jp=state.japanese; const s=getDailySentence(); const today=todayStr();
+  const done=jp.lastStudyDate===today;
+  const pct=Math.max(0,Math.min(100, Math.round(jp.learnedDays/jp.targetDays*100)));
+  const logsHtml=(jp.logs||[]).slice().reverse().map(function(l){
+   const icon=l.type==='sentence'?'📖':'✍️';
+   return '<div class="jp-log-item"><div class="jp-log-date">'+hEsc(l.date||'')+'</div><div class="jp-log-text">'+icon+' '+hEsc(l.text||'')+'</div></div>';
+  }).join('') || '<div class="empty-state"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg><p>还没有学习记录<br>从今日一句开始吧</p></div>';
+  const btn=done
+   ? '<button class="btn-primary" disabled style="background:#bbb;cursor:default">今日已完成 ✓</button>'
+   : '<button class="btn-primary" onclick="markTodayStudied()">今日已学 ✓</button>';
+  const body=document.getElementById('jp-body'); if(!body)return;
+  body.innerHTML=
+   '<div class="card jp-board">'+
+    '<div class="jp-level">当前等级 <b>'+hEsc(jp.level)+'</b> <span class="jp-level-tag">N5 入门</span></div>'+
+    '<div class="jp-progress"><div class="jp-bar"><div class="jp-bar-fill" style="width:'+pct+'%"></div></div>'+
+    '<div class="jp-progress-txt">已学习 '+jp.learnedDays+' 天 / 目标 '+jp.targetDays+' 天（'+pct+'%）</div></div>'+
+    '<div class="jp-streak">🔥 连续 '+jp.streak+' 天</div>'+
+   '</div>'+
+   '<div class="sec-title"><div class="left"><div class="dot" style="background:#2E7DD1"></div>今日一句</div></div>'+
+   '<div class="card jp-today">'+
+    '<div class="jp-jp">'+hEsc(s.jp)+'</div>'+
+    '<div class="jp-reading">'+hEsc(s.reading)+'</div>'+
+    '<div class="jp-meaning">'+hEsc(s.meaning)+'</div>'+
+    '<div class="jp-scene">🏷️ '+hEsc(s.scene)+'</div>'+
+    '<div style="margin-top:12px">'+btn+'</div>'+
+   '</div>'+
+   '<div class="sec-title"><div class="left"><div class="dot" style="background:#E8703A"></div>学习日志</div></div>'+
+   '<div class="card jp-logs">'+logsHtml+'</div>'+
+   '<div class="jp-input-row">'+
+    '<input type="text" id="jp-input" class="jp-input" placeholder="今天学到的日语（自由记录）" onkeydown="if(event.key===\'Enter\')submitJpInput()">'+
+    '<button class="btn-ghost" onclick="submitJpInput()">提交</button>'+
+   '</div>';
+ }catch(e){ console.warn('[jp]',e); }
+}
+function markTodayStudied(){
+ try{
+  const jp=state.japanese; const today=todayStr();
+  if(jp.lastStudyDate===today){ toast('今天已经学过啦 ✓'); return; }
+  const s=getDailySentence();
+  jp.learnedDays+=1;
+  const y=yesterdayStr();
+  if(jp.lastStudyDate===y) jp.streak+=1; else jp.streak=1;
+  jp.lastStudyDate=today;
+  jp.logs.push({date:today, text:s.jp+'（'+s.meaning+'）', type:'sentence'});
+  saveJp();
+  addJapaneseMediaRecord(s.jp, jp.learnedDays);
+  linkJapaneseHabit(s.jp);
+  renderJapanese(); renderMedia(); renderHabits(); renderToday();
+  toast('今日一句已学 ✓ 连续 '+jp.streak+' 天');
+ }catch(e){ console.warn('[jp mark]',e); }
+}
+function submitJpInput(){
+ try{
+  const el=document.getElementById('jp-input'); if(!el)return;
+  const v=(el.value||'').trim(); if(!v){ toast('写点什么嘛'); return; }
+  state.japanese.logs.push({date:todayStr(), text:v, type:'input'});
+  saveJp(); el.value='';
+  renderJapanese();
+  toast('记下了 ✓');
+ }catch(e){}
+}
+function addJapaneseMediaRecord(sentenceJp, day){
+ try{
+  state.media=state.media||[];
+  state.media.push({
+   id:uid(), title:'日语学习 Day '+day+'：'+sentenceJp, type:'book', genres:[],
+   rating:0, tags:['日语学习'], review:'', status:'done', cover:'', craving:3,
+   date:todayStr(), ts:Date.now(), linkExplore:'', linkRecord:''
+  });
+  DB.set('media', state.media);
+ }catch(e){}
+}
+function linkJapaneseHabit(sentenceJp){
+ try{
+  const today=todayStr();
+  const habit=state.habits.find(function(h){return h.name==='学日语';});
+  if(habit){
+   state.habitLogs[today]=state.habitLogs[today]||{};
+   state.habitLogs[today][habit.id]={val:1, note:'今日一句：'+sentenceJp, t:Date.now(), dur:0};
+   DB.set('habitLogs', state.habitLogs);
+   renderHabits(); renderToday();
+  }else{
+   confirmBox('要不要创建「学日语」习惯？','每天 5 分钟就行～创建后，每天点「今日已学」会自动帮你打卡哦。',
+    '<div class="cb-row"><button class="btn-ghost" onclick="closeConfirm()">不用了</button><button class="btn-primary" onclick="createJapaneseHabit()">好呀，创建</button></div>');
+  }
+ }catch(e){}
+}
+function createJapaneseHabit(){
+ try{
+  closeConfirm();
+  const today=todayStr();
+  const habit={id:'h-jp-'+Date.now().toString(36), name:'学日语', icon:'lang', color:'#E8703A', target:1, unit:'次', freq:'daily', motto:'每日一句，积少成多'};
+  state.habits=state.habits||[]; state.habits.push(habit);
+  DB.set('habits', state.habits);
+  state.habitLogs[today]=state.habitLogs[today]||{};
+  state.habitLogs[today][habit.id]={val:1, note:'今日一句：已创建并打卡', t:Date.now(), dur:0};
+  DB.set('habitLogs', state.habitLogs);
+  renderHabits(); renderToday(); renderJapanese();
+  toast('已创建「学日语」习惯并打卡 ✓');
+ }catch(e){}
+}
+
 function init(){
  const isFirstTime=state.records.length===0&&state.shopping.length===0&&state.explores.length===0;
  if(isFirstTime&&!DB.get('cleared')){ try{ loadDemoData(); }catch(e){ console.warn('[loadDemo]',e); } }
  applyNightMode();
  applyPrivacy();
+ rotateDailySentence();
  recommendMedia();
  try{renderTab('home');renderToday();}catch(e){console.error('[init] home render:',e);}
  checkAwards();
@@ -5729,6 +5964,7 @@ var SYNC_WHITELIST={
   tasks:{cap:200},           // 任务（截断）
   contactTags:{cap:0},       // 工作对接人标签（小）
   habits:{cap:0},            // 习惯定义（小）
+  japanese:{cap:0},          // 日语课（小，全量同步）
   habitLogs:{cap:200},       // 打卡日志（截断，v32.5 加回）
   settings:{cap:0},          // 设置（小）
   points:{cap:0},            // 积分（小）
@@ -5804,7 +6040,7 @@ function _slimValue(k,val,cap){
 
 // 收集本地白名单数据（全量，作为上传合并基底）。返回字符串包 {key: jsonString}
 function collectSyncData(){
- var pkg={_ts:new Date().toISOString(),_v:36}, total=0, changed=0, skipped=[];
+ var pkg={_ts:new Date().toISOString(),_v:37}, total=0, changed=0, skipped=[];
  var whitelistKeys=Object.keys(SYNC_WHITELIST);
  for(var wi=0;wi<whitelistKeys.length;wi++){
   var k=whitelistKeys[wi];
