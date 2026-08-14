@@ -1041,7 +1041,7 @@ display:flex;align-items:center;justify-content:space-between;margin-bottom:12px
 .jp-input-row{display:flex;gap:8px;margin-top:10px}
 .jp-input{flex:1;border:1px solid #e0e0e0;border-radius:10px;padding:10px 12px;font-size:14px;background:#fff;color:var(--text)}
 .jp-input:focus{outline:none;border-color:#2E7DD1}
-/* 引导式学习系统（v38） */
+/* 引导式学习系统（v39） */
 .jp-tabs{display:flex;gap:6px;margin:12px 0 4px;overflow-x:auto;-webkit-overflow-scrolling:touch}
 .jp-tab{flex:0 0 auto;border:1px solid #e2e8f0;background:#fff;color:#5a6b7a;border-radius:14px;padding:7px 12px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
 .jp-tab.on{background:#2E7DD1;color:#fff;border-color:#2E7DD1}
@@ -1329,6 +1329,33 @@ align-items:center;justify-content:center;font-size:13px}
 .sync-log-item .sl-body{flex:1;min-width:0}
 .sync-log-item .sl-top{font-size:11px;color:#6b7280}
 .sync-log-item .sl-mid{font-size:12px;color:var(--text);font-weight:600;word-break:break-all}
+/* ===== 日语双模式（跟读+跟写）v39 新增样式 ===== */
+.jp-step{font-size:11px;color:var(--text3);margin-bottom:4px;letter-spacing:.2px}
+.jp-five{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.jp-btn{border:1px solid #d6e0ec;background:#fff;color:#2E7DD1;border-radius:14px;padding:10px 12px;font-size:14px;font-weight:700;cursor:pointer;transition:all .15s}
+.jp-btn:active{transform:scale(.97)}
+.jp-btn-on{background:#E7F7EA;border-color:#7CC98B;color:#2E9E4F}
+.jp-status{margin-top:10px;font-size:13px;font-weight:700;color:#5a6b7a}
+.jp-clear{margin-top:8px;font-size:14px;font-weight:800;color:#2E9E4F}
+.jp-warn{margin-top:8px;font-size:12px;color:#E8703A}
+.jp-trace-title{font-size:13px;font-weight:700;color:#5a6b7a;margin:12px 0 6px}
+.jp-trace-canvas{width:100%;height:auto;aspect-ratio:1/1;background:#fbfdff;border:2px dashed #cdd8e6;border-radius:16px;touch-action:none;display:block}
+.jp-cov{margin-top:6px;font-size:13px;font-weight:700;color:#2E7DD1}
+.jp-trace-btns{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+.jp-trace-btns .btn-primary{flex:1;min-width:120px}
+.jp-trace-hint{font-size:11px;color:var(--text3);margin-top:6px}
+.jp-write-box{display:flex;gap:8px;margin-top:10px}
+.jp-write-input{flex:1;min-width:0;border:1px solid #d6e0ec;border-radius:12px;padding:10px 12px;font-size:14px;outline:none}
+.jp-write-input:focus{border-color:#2E7DD1}
+.jp-prog-wrap{margin-top:12px;display:flex;flex-direction:column;gap:8px}
+.jp-prog-row{display:flex;align-items:center;gap:8px}
+.jp-prog-label{width:96px;flex:0 0 96px;font-size:12px;color:#5a6b7a}
+.jp-prog-label b{color:var(--text)}
+.jp-prog-row .jp-bar{flex:1;height:10px;background:#eef2f7;border-radius:6px;overflow:hidden}
+.jp-prog-row .jp-bar-fill{height:100%;border-radius:6px}
+.jp-prog-pct{width:34px;flex:0 0 34px;text-align:right;font-size:12px;font-weight:700;color:#5a6b7a}
+.jp-row-lock{opacity:.5}
+.jp-kana.on .jp-kana-ok{font-size:12px}
 </style>
 </head>
 <body>
@@ -2044,6 +2071,189 @@ const JP_KANA_ROWS=[
  {label:'わ行',items:[['わ','wa','w+あ'],['を','wo','w+お（作宾格助词读 o）']]},
 ];
 const JP_NN={k:'ん',r:'n',tip:'鼻音“嗯”，单独占一拍，不拼元音'};
+// 五十音图笔画数据（简化折线，坐标归一化 0-1，作 Canvas 描摹底稿与覆盖度检测用）
+const STROKE_DATA={
+ 'あ':[
+  [[0.20,0.34],[0.55,0.30],[0.66,0.42]],
+  [[0.52,0.22],[0.44,0.42],[0.30,0.58],[0.40,0.76],[0.64,0.80],[0.76,0.68]],
+  [[0.30,0.56],[0.38,0.63],[0.28,0.68],[0.22,0.60],[0.30,0.56]]
+ ],
+ 'い':[
+  [[0.30,0.30],[0.50,0.55],[0.40,0.80]],
+  [[0.60,0.24],[0.55,0.52],[0.64,0.78]]
+ ],
+ 'う':[
+  [[0.25,0.40],[0.45,0.34],[0.62,0.42],[0.50,0.56]],
+  [[0.40,0.50],[0.55,0.58],[0.45,0.74],[0.60,0.78]]
+ ],
+ 'え':[
+  [[0.66,0.28],[0.40,0.42],[0.58,0.50],[0.30,0.62],[0.55,0.70],[0.34,0.82]]
+ ],
+ 'お':[
+  [[0.60,0.30],[0.40,0.34],[0.34,0.54],[0.46,0.72],[0.62,0.60],[0.56,0.44],[0.46,0.46],[0.52,0.58]]
+ ],
+ 'か':[
+  [[0.30,0.30],[0.60,0.26]],
+  [[0.40,0.40],[0.55,0.50],[0.40,0.62],[0.55,0.74],[0.38,0.82]]
+ ],
+ 'き':[
+  [[0.32,0.30],[0.34,0.78]],
+  [[0.50,0.38],[0.68,0.36],[0.56,0.50],[0.68,0.64]]
+ ],
+ 'く':[
+  [[0.30,0.34],[0.48,0.52],[0.40,0.66]],
+  [[0.42,0.56],[0.62,0.74],[0.50,0.80]]
+ ],
+ 'け':[
+  [[0.30,0.32],[0.58,0.30],[0.50,0.52]],
+  [[0.36,0.50],[0.56,0.60],[0.44,0.78],[0.60,0.82]]
+ ],
+ 'こ':[
+  [[0.30,0.32],[0.58,0.30],[0.46,0.50]],
+  [[0.34,0.50],[0.56,0.62],[0.40,0.78],[0.60,0.80]]
+ ],
+ 'さ':[
+  [[0.30,0.34],[0.62,0.28]],
+  [[0.42,0.42],[0.56,0.52],[0.40,0.66],[0.56,0.80]]
+ ],
+ 'し':[
+  [[0.30,0.32],[0.50,0.52],[0.42,0.80]]
+ ],
+ 'す':[
+  [[0.60,0.30],[0.36,0.46],[0.58,0.50],[0.36,0.62],[0.60,0.72]]
+ ],
+ 'せ':[
+  [[0.30,0.32],[0.58,0.30],[0.48,0.50]],
+  [[0.38,0.52],[0.56,0.60],[0.44,0.78],[0.60,0.80]]
+ ],
+ 'そ':[
+  [[0.30,0.32],[0.58,0.30],[0.48,0.50]],
+  [[0.34,0.50],[0.56,0.62],[0.40,0.78],[0.60,0.80]]
+ ],
+ 'た':[
+  [[0.30,0.32],[0.60,0.30]],
+  [[0.44,0.42],[0.40,0.64],[0.58,0.82]]
+ ],
+ 'ち':[
+  [[0.30,0.30],[0.50,0.52],[0.34,0.80]],
+  [[0.50,0.40],[0.66,0.56]]
+ ],
+ 'つ':[
+  [[0.58,0.30],[0.34,0.42],[0.56,0.46],[0.36,0.58],[0.60,0.66]]
+ ],
+ 'て':[
+  [[0.30,0.34],[0.62,0.30]],
+  [[0.40,0.44],[0.58,0.58],[0.42,0.76]]
+ ],
+ 'と':[
+  [[0.30,0.32],[0.60,0.30]],
+  [[0.40,0.46],[0.60,0.50],[0.42,0.66],[0.58,0.78]]
+ ],
+ 'な':[
+  [[0.30,0.34],[0.58,0.30]],
+  [[0.46,0.44],[0.40,0.64],[0.56,0.78]]
+ ],
+ 'に':[
+  [[0.34,0.30],[0.38,0.78]],
+  [[0.58,0.32],[0.56,0.78]]
+ ],
+ 'ぬ':[
+  [[0.34,0.30],[0.58,0.34],[0.40,0.50],[0.58,0.66],[0.34,0.78]],
+  [[0.50,0.52],[0.62,0.62]]
+ ],
+ 'ね':[
+  [[0.34,0.30],[0.58,0.34],[0.42,0.50],[0.58,0.66],[0.34,0.78]],
+  [[0.40,0.62],[0.58,0.76]]
+ ],
+ 'の':[
+  [[0.62,0.30],[0.38,0.40],[0.56,0.58],[0.34,0.70],[0.58,0.76]],
+  [[0.34,0.58],[0.50,0.66]]
+ ],
+ 'は':[
+  [[0.30,0.34],[0.60,0.30]],
+  [[0.46,0.44],[0.42,0.64],[0.56,0.78]]
+ ],
+ 'ひ':[
+  [[0.34,0.30],[0.36,0.60],[0.38,0.78]],
+  [[0.52,0.38],[0.64,0.50],[0.52,0.62]]
+ ],
+ 'ふ':[
+  [[0.30,0.52],[0.46,0.40],[0.60,0.52],[0.46,0.64],[0.30,0.52]],
+  [[0.40,0.70],[0.56,0.66]]
+ ],
+ 'へ':[
+  [[0.30,0.34],[0.60,0.50],[0.30,0.66]]
+ ],
+ 'ほ':[
+  [[0.30,0.34],[0.60,0.30]],
+  [[0.46,0.44],[0.42,0.64],[0.56,0.78]]
+ ],
+ 'ま':[
+  [[0.30,0.34],[0.58,0.30]],
+  [[0.44,0.42],[0.36,0.60],[0.54,0.74]],
+  [[0.40,0.54],[0.56,0.50],[0.48,0.66],[0.58,0.64]]
+ ],
+ 'み':[
+  [[0.34,0.30],[0.30,0.52],[0.36,0.78]],
+  [[0.58,0.32],[0.54,0.54],[0.60,0.78]]
+ ],
+ 'む':[
+  [[0.30,0.50],[0.46,0.38],[0.60,0.50],[0.46,0.62],[0.30,0.50]],
+  [[0.36,0.70],[0.52,0.66]]
+ ],
+ 'め':[
+  [[0.30,0.50],[0.46,0.38],[0.60,0.50],[0.46,0.62],[0.30,0.50]],
+  [[0.34,0.66],[0.52,0.72]]
+ ],
+ 'も':[
+  [[0.30,0.50],[0.46,0.38],[0.60,0.50],[0.46,0.62],[0.30,0.50]],
+  [[0.42,0.44],[0.40,0.62],[0.56,0.76]]
+ ],
+ 'や':[
+  [[0.30,0.34],[0.58,0.30]],
+  [[0.44,0.42],[0.36,0.62],[0.56,0.78]]
+ ],
+ 'ゆ':[
+  [[0.32,0.32],[0.56,0.44],[0.34,0.58],[0.56,0.70]],
+  [[0.40,0.66],[0.52,0.74]]
+ ],
+ 'よ':[
+  [[0.30,0.34],[0.58,0.30]],
+  [[0.44,0.42],[0.38,0.60],[0.56,0.74],[0.34,0.78]]
+ ],
+ 'ら':[
+  [[0.30,0.34],[0.58,0.30]],
+  [[0.46,0.42],[0.40,0.58],[0.52,0.70],[0.42,0.78]]
+ ],
+ 'り':[
+  [[0.34,0.30],[0.32,0.58],[0.38,0.78]],
+  [[0.56,0.34],[0.52,0.62],[0.58,0.78]]
+ ],
+ 'る':[
+  [[0.30,0.34],[0.58,0.30]],
+  [[0.44,0.42],[0.38,0.58],[0.52,0.70],[0.40,0.80]]
+ ],
+ 'れ':[
+  [[0.30,0.34],[0.58,0.30]],
+  [[0.44,0.42],[0.38,0.56],[0.54,0.62],[0.38,0.74],[0.56,0.80]]
+ ],
+ 'ろ':[
+  [[0.30,0.34],[0.58,0.30]],
+  [[0.44,0.42],[0.40,0.58],[0.54,0.66],[0.40,0.78]]
+ ],
+ 'わ':[
+  [[0.30,0.34],[0.58,0.30]],
+  [[0.46,0.44],[0.38,0.62],[0.56,0.76]]
+ ],
+ 'を':[
+  [[0.30,0.34],[0.58,0.30]],
+  [[0.46,0.44],[0.40,0.62],[0.56,0.78]],
+  [[0.64,0.60],[0.62,0.76]]
+ ],
+ 'ん':[
+  [[0.34,0.34],[0.56,0.30],[0.60,0.48],[0.42,0.62],[0.56,0.74]]
+ ]
+};
 function jpKanaAll(){const a=[];JP_KANA_ROWS.forEach(function(row,ri){row.items.forEach(function(it){a.push({k:it[0],r:it[1],tip:it[2],row:ri});});});a.push({k:JP_NN.k,r:JP_NN.r,tip:JP_NN.tip,row:99});return a;}
 // N5 核心单词 100 个：[假名, 罗马音, 声调(0-4), 中文, 场景]
 const JP_WORDS=[
@@ -2129,22 +2339,37 @@ const JP_SENTENCES=[
  {jp:'駅は遠いですか',reading:'eki wa tooi desu ka',meaning:'车站远吗',scene:'问路',br:[['駅','eki','车站'],['は','wa','主题'],['遠い','tooi','远'],['ですか','desu ka','吗']]},
  {jp:'ごちそうさま',reading:'gochisousama',meaning:'谢谢款待',scene:'点餐',br:[['ごちそう','gochisou','款待'],['さま','sama','样（敬）']],note:'吃完后说“我吃饱了/谢谢款待”'}
 ];
-function defaultJapanese(){return{level:'N5',kana:{mastered:[],currentRow:0},words:{mastered:[],currentIndex:0},sentences:{mastered:[],currentIndex:0},logs:[],learnedDays:0,streak:0,lastStudyDate:'',targetDays:90};}
+// ============ 日语学习：双模式状态（跟读 read + 跟写 write，两者都满足即“已掌握”） ============
+function normJpSeg(seg){
+  if(!seg||typeof seg!=='object'||Array.isArray(seg)) seg={};
+  seg.mastered=Array.isArray(seg.mastered)?seg.mastered:[];
+  seg.read=Array.isArray(seg.read)?seg.read:[];
+  seg.write=Array.isArray(seg.write)?seg.write:[];
+  // 旧版：只有 mastered，没有 read/write → 视为两项都已满足
+  if(seg.read.length===0 && seg.write.length===0 && seg.mastered.length>0){ seg.read=seg.mastered.slice(); seg.write=seg.mastered.slice(); }
+  // mastered 永远由 read ∩ write 推导
+  seg.mastered=seg.read.filter(function(x){return seg.write.indexOf(x)>=0;});
+  if(typeof seg.currentIndex!=='number'||seg.currentIndex<0)seg.currentIndex=0;
+  if(typeof seg.currentRow!=='number')seg.currentRow=0;
+  return seg;
+}
+function defaultJapanese(){return{level:'N5',kana:{mastered:[],read:[],write:[],currentRow:0},words:{mastered:[],read:[],write:[],currentIndex:0},sentences:{mastered:[],read:[],write:[],currentIndex:0},logs:[],learnedDays:0,streak:0,lastStudyDate:'',targetDays:90};}
 function migrateJapanese(jp){
  if(!jp||typeof jp!=='object'||Array.isArray(jp)) return defaultJapanese();
- if(jp.dailySentenceIndex!==undefined&&!jp.kana){ // 旧版结构
+ if(jp.dailySentenceIndex!==undefined && !jp.kana){ // v37 旧版结构
   const nd=defaultJapanese();
   nd.logs=Array.isArray(jp.logs)?jp.logs:[];
   nd.learnedDays=jp.learnedDays||0; nd.streak=jp.streak||0; nd.lastStudyDate=jp.lastStudyDate||'';
   nd.targetDays=jp.targetDays||90; nd.level=jp.level||'N5';
   return nd;
  }
- if(!jp.kana)jp.kana={mastered:[],currentRow:0};
- if(!jp.words)jp.words={mastered:[],currentIndex:0};
- if(!jp.sentences)jp.sentences={mastered:[],currentIndex:0};
- if(!Array.isArray(jp.logs))jp.logs=[];
+ jp.kana=normJpSeg(jp.kana);
+ jp.words=normJpSeg(jp.words);
+ jp.sentences=normJpSeg(jp.sentences);
+ jp.logs=Array.isArray(jp.logs)?jp.logs:[];
  ['learnedDays','streak','targetDays'].forEach(function(k){ if(typeof jp[k]!=='number'||!isFinite(jp[k]))jp[k]=0; });
  if(typeof jp.lastStudyDate!=='string')jp.lastStudyDate='';
+ if(typeof jp.level!=='string')jp.level='N5';
  return jp;
 }
 let state={
@@ -4998,7 +5223,7 @@ function openSettings(){
   '<button class="btn-primary" onclick="saveSettings()">保存设置</button>'+
  '<div class="sec-title mt12"><div class="left" style="color:var(--hab)">报告</div></div><button class="btn-ghost" onclick="generateWeeklyReport()" style="width:100%;margin-bottom:8px">春日部新闻报（周报）</button><button class="btn-ghost" onclick="generateMonthlyReport()" style="width:100%;margin-bottom:8px">机智可爱田财政赤字报告（月报）</button>'+
  '<div class="sec-title"><div class="left" style="color:var(--expense)">数据管理</div></div><button class="btn-ghost" onclick="clearDemoData()" style="width:100%;margin-bottom:8px">清空示例数据</button><button class="btn-ghost" onclick="clearAllData()" style="width:100%;color:var(--expense);border-color:var(--expense)">清空所有数据</button><div id="backup-history"></div>'+
- '<div class="sec-title"><div class="left" style="color:#3B82C4">数据同步（连 Supabase 服务器 · 自动同步）</div><span style="font-size:10px;background:#E60012;color:#fff;padding:2px 8px;border-radius:6px;font-weight:700">v38</span></div>'
+ '<div class="sec-title"><div class="left" style="color:#3B82C4">数据同步（连 Supabase 服务器 · 自动同步）</div><span style="font-size:10px;background:#E60012;color:#fff;padding:2px 8px;border-radius:6px;font-weight:700">v39</span></div>'
 +'<div class="card-tight card mb8" style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:13px">连服务器自动同步（手机电脑共享）</span><button class="btn-ghost" id="supa-on-btn" onclick="supaToggleOn()" style="font-size:12px;padding:6px 14px;min-height:34px">'+(DB.get('sync_on',false)?'已开启':'已关闭')+'</button></div>'
 +'<div class="form-group"><label class="form-label">Supabase 项目 URL</label><input type="text" id="sync-url" value="'+hEsc(DB.get('sync_url','https://zmlkhnhjqcpzhywrgtiw.supabase.co'))+'" placeholder="https://xxxx.supabase.co"></div>'
 +'<div class="form-group"><label class="form-label">anon / public key</label><input type="text" id="sync-key" value="'+hEsc(DB.get('sync_key','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InptbGtobmhqcWNwemh5d3JndGl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYxMjY2NjcsImV4cCI6MjEwMTcwMjY2N30.hZnlONauB0y20wMEF7OG5kRn2uR2PCvcVEfrAE9FoVI'))+'" placeholder="eyJhbGciOi... 或 sb_publishable_..."></div>'
@@ -5139,19 +5364,41 @@ function speakJapanese(text, rate){
  }catch(e){}
 }
 function jpPitchMark(n){ if(n===0)return '⓪'; var c=['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩','⑪','⑫','⑬','⑭','⑮','⑯','⑰','⑱','⑲','⑳']; return c[n-1]||(''+n); }
-function jpKanaUnlocked(){ const all=jpKanaAll(); const need=all.filter(function(x){return x.row===0||x.row===1;}); const m=state.japanese.kana.mastered||[]; return need.length>0 && need.every(function(x){return m.indexOf(x.k)>=0;}); }
-function jpWordsUnlocked(){ return jpKanaUnlocked() && (state.japanese.words.mastered.length>=30); }
-function jpTodayPlan(){
- const jp=state.japanese;
- if((jp.kana.mastered.length||0) < jpKanaAll().length) return 'kana';
- if((jp.words.mastered.length||0) < 30) return 'words';
- if((jp.sentences.mastered.length||0) < JP_SENTENCES.length) return 'sentences';
- return 'words';
+// ============ 日语学习：双模式（跟读+跟写）核心逻辑 ============
+function jpKanaUnlocked(){ return true; } // 五十音是基础阶段，始终开放
+function jpWordsUnlocked(){ return (state.japanese.kana.mastered.length)>=20; } // 假名掌握 20 个后解锁单词
+function jpSentencesUnlocked(){ return (state.japanese.words.mastered.length)>=30; } // 单词掌握 30 个后解锁句子
+function jpRowUnlocked(ri){
+  if(ri===0) return true;
+  if(ri>=99) return jpKanaAll().filter(function(x){return x.row<99;}).every(function(x){return (state.japanese.kana.mastered||[]).indexOf(x.k)>=0;});
+  const prev=JP_KANA_ROWS[ri-1];
+  return prev.items.every(function(it){return (state.japanese.kana.mastered||[]).indexOf(it[0])>=0;});
 }
-function jpNextKana(){ const m=state.japanese.kana.mastered||[]; return jpKanaAll().find(function(x){return m.indexOf(x.k)<0;})||null; }
+function jpNextKana(){ const m=state.japanese.kana.mastered||[]; return jpKanaAll().find(function(x){ return m.indexOf(x.k)<0 && jpRowUnlocked(x.row); })||null; }
 function jpCurrentWord(){ const i=Math.min(state.japanese.words.currentIndex||0, JP_WORDS.length-1); return {idx:i, w:JP_WORDS[i]}; }
 function jpCurrentSentence(){ const i=Math.min(state.japanese.sentences.currentIndex||0, JP_SENTENCES.length-1); return {idx:i, s:JP_SENTENCES[i]}; }
-function yesterdayStr(){ const d=new Date(); d.setDate(d.getDate()-1); return dateStr(d); }
+function jpTodayPlan(){
+  const jp=state.japanese;
+  const kanaRemain = jpNextKana()!=null;
+  const wordsUnlocked=jpWordsUnlocked();
+  const wordsRemain=jp.words.mastered.length<JP_WORDS.length;
+  const sentUnlocked=jpSentencesUnlocked();
+  const sentRemain=jp.sentences.mastered.length<JP_SENTENCES.length;
+  if(kanaRemain && !wordsUnlocked) return 'kana';
+  if(wordsUnlocked && wordsRemain && (!sentUnlocked || !sentRemain)){
+    const dayNum = parseInt((todayStr()||'0').replace(/-/g,''),10) || 0;
+    if(kanaRemain && (dayNum%2===1)) return 'kana'; // 与单词混排：奇数日侧重假名
+    return 'words';
+  }
+  if(sentUnlocked && sentRemain) return 'sentences';
+  if(wordsRemain) return 'words';
+  if(kanaRemain) return 'kana';
+  return 'words';
+}
+function jpSegState(seg, id){ return { read: seg.read.indexOf(id)>=0, write: seg.write.indexOf(id)>=0, mastered: seg.mastered.indexOf(id)>=0 }; }
+function jpSetRead(seg, id){ if(seg.read.indexOf(id)<0) seg.read.push(id); }
+function jpSetWrite(seg, id){ if(seg.write.indexOf(id)<0) seg.write.push(id); }
+function jpRecompute(seg){ seg.mastered=seg.read.filter(function(x){return seg.write.indexOf(x)>=0;}); }
 function renderJpHomeCard(){
  try{
   const el=document.getElementById('jp-home-card'); if(!el)return;
@@ -5168,6 +5415,7 @@ function renderJpHomeCard(){
  }catch(e){}
 }
 function openJapanese(){ try{ renderJapanese(); openSubpage('subpage-japanese'); }catch(e){} }
+function jpSegBar(label, done, total, color){ const pct=total>0?Math.round(done/total*100):0; return '<div class="jp-prog-row"><div class="jp-prog-label">'+label+' <b>'+done+'/'+total+'</b></div><div class="jp-bar"><div class="jp-bar-fill" style="width:'+pct+'%;background:'+color+'"></div></div><div class="jp-prog-pct">'+pct+'%</div></div>'; }
 function renderJapanese(){
  try{
   const jp=state.japanese; if(!window._jpTab)window._jpTab='today';
@@ -5179,14 +5427,14 @@ function renderJapanese(){
   const body=document.getElementById('jp-body'); if(!body)return;
   body.innerHTML=
    '<div class="card jp-board">'+
-    '<div class="jp-level">等级 <b>'+hEsc(jp.level)+'</b> <span class="jp-level-tag">N5 引导式学习</span></div>'+
+    '<div class="jp-level">等级 <b>'+hEsc(jp.level)+'</b> <span class="jp-level-tag">N5 引导式学习 · 跟读+跟写</span></div>'+
     '<div class="jp-progress"><div class="jp-bar"><div class="jp-bar-fill" style="width:'+pct+'%"></div></div>'+
     '<div class="jp-progress-txt">已学习 '+(jp.learnedDays||0)+' 天 / 目标 '+(jp.targetDays||90)+' 天（'+pct+'%）</div></div>'+
     '<div class="jp-streak">🔥 连续 '+(jp.streak||0)+' 天　·　今日已学 '+todayCount+' 个</div>'+
-    '<div class="jp-mini">'+
-     '<div class="jp-mini-i"><div class="jp-mini-n">'+km+'/'+(jpKanaAll().length)+'</div><div class="jp-mini-l">五十音</div></div>'+
-     '<div class="jp-mini-i"><div class="jp-mini-n">'+wm+'/'+JP_WORDS.length+'</div><div class="jp-mini-l">单词</div></div>'+
-     '<div class="jp-mini-i"><div class="jp-mini-n">'+sm+'/'+JP_SENTENCES.length+'</div><div class="jp-mini-l">句子</div></div>'+
+    '<div class="jp-prog-wrap">'+
+      jpSegBar('五十音', km, jpKanaAll().length, '#2E7DD1')+
+      jpSegBar('单词', wm, JP_WORDS.length, '#E8703A')+
+      jpSegBar('句子', sm, JP_SENTENCES.length, '#2E9E4F')+
     '</div>'+
    '</div>'+
    '<div class="jp-tabs">'+tbar+'</div>'+
@@ -5218,204 +5466,263 @@ function renderJpTab(tab){
 function renderJpToday(box){
  try{
   const plan=jpTodayPlan();
-  let html='';
-  if(plan==='kana'){
-   const k=jpNextKana();
-   html='<div class="sec-title"><div class="left"><div class="dot" style="background:#2E7DD1"></div>今日学假名</div></div>'+
-    (k?('<div class="card jp-study">'+
-      '<div class="jp-big">'+k.k+'</div>'+
-      '<div class="jp-reading">'+k.r+'</div>'+
-      '<div class="jp-tip">👄 '+k.tip+'</div>'+
-      '<div class="jp-actions">'+
-       '<button class="btn-ghost" onclick="speakKana(\''+k.k+'\')">🔊 听发音</button>'+
-       '<button class="btn-primary" onclick="toggleKanaMastered(\''+k.k+'\')">✅ 已掌握</button>'+
-      '</div>'+
-      '<div class="jp-hint">掌握后进入下一假名 · 先学完あ行+か行才能解锁单词</div>'+
-     '</div>'):'<div class="card jp-study">🎉 五十音已全部掌握！去「单词」标签继续吧</div>');
-  }else if(plan==='words'){
-   const c=jpCurrentWord();
-   html='<div class="sec-title"><div class="left"><div class="dot" style="background:#2E7DD1"></div>今日学单词</div></div>'+
-    '<div class="card jp-study">'+
-     '<div class="jp-big">'+c.w[0]+'</div>'+
-     '<div class="jp-reading">'+c.w[1]+'　<span class="jp-pitch">'+jpPitchMark(c.w[2])+'</span></div>'+
-     '<div class="jp-meaning">'+c.w[3]+'</div>'+
-     '<div class="jp-scene">🏷️ '+(c.w[4]||'')+'</div>'+
-     '<div class="jp-actions">'+
-      '<button class="btn-ghost" onclick="speakWord(\''+c.w[0]+'\')">🔊 听发音</button>'+
-      '<button class="btn-ghost" onclick="jpWordRead('+c.idx+')">🔁 跟读一遍</button>'+
-      '<button class="btn-primary" onclick="jpWordMaster('+c.idx+')">✅ 能读出来了</button>'+
-     '</div>'+
-     '<div class="jp-readdots" id="jp-readdots"></div>'+
-     '<div class="jp-hint">连读 3 遍自动提示进入下一个 · 自己判断像不像</div>'+
-    '</div>';
-  }else{
-   const c=jpCurrentSentence();
-   html='<div class="sec-title"><div class="left"><div class="dot" style="background:#2E7DD1"></div>今日学句子</div></div>'+
-    '<div class="card jp-study">'+
-     '<div class="jp-big">'+c.s.jp+'</div>'+
-     '<div class="jp-reading">'+c.s.reading+'</div>'+
-     '<div class="jp-meaning">'+c.s.meaning+'</div>'+
-     '<div class="jp-scene">🏷️ '+(c.s.scene||'')+'</div>'+
-     (c.s.note?'<div class="jp-tip">💡 '+c.s.note+'</div>':'')+
-     '<div class="jp-br">'+c.s.br.map(function(b){return '<div class="jp-br-i"><b>'+b[0]+'</b> <span>'+b[1]+'</span> <i>'+b[2]+'</i></div>';}).join('')+'</div>'+
-     '<div class="jp-actions">'+
-      '<button class="btn-ghost" onclick="jpSentenceWords('+c.idx+')">🔊 逐词朗读</button>'+
-      '<button class="btn-ghost" onclick="jpSentenceFull('+c.idx+')">🔊 整句朗读</button>'+
-      '<button class="btn-primary" onclick="jpSentenceMaster('+c.idx+')">✅ 能读出来了</button>'+
-     '</div>'+
-    '</div>';
-  }
+  let html='<div class="sec-title"><div class="left"><div class="dot" style="background:#2E7DD1"></div>今日学习（第 '+(state.japanese.learnedDays+1)+' 天）</div></div>';
+  if(plan==='kana'){ const k=jpNextKana(); if(k) html+=jpKanaCardHTML(k); else html+=jpWordsCardHTML(jpCurrentWord()); }
+  else if(plan==='words'){ html+=jpWordsCardHTML(jpCurrentWord()); }
+  else { html+=jpSentencesCardHTML(jpCurrentSentence()); }
   box.innerHTML=html;
-  if(plan==='words')renderJpReadDots();
  }catch(e){ console.warn('[jp today]',e); }
 }
-function renderJpKana(box){
- try{
-  const m=state.japanese.kana.mastered||[];
-  let rows=JP_KANA_ROWS.map(function(row){
-   let cells=row.items.map(function(it){
-    const on=m.indexOf(it[0])>=0;
-    return '<div class="jp-kana'+(on?' on':'')+'" onclick="speakKana(\''+it[0]+'\')">'+
-      '<div class="jp-kana-k">'+it[0]+'</div><div class="jp-kana-r">'+it[1]+'</div>'+
-      (on?'<div class="jp-kana-ok">✓</div>':'')+'</div>';
-   }).join('');
-   return '<div class="jp-kana-row"><div class="jp-kana-label">'+row.label+'</div><div class="jp-kana-cells">'+cells+'</div></div>';
-  }).join('');
-  const nnOn=m.indexOf(JP_NN.k)>=0;
-  rows+='<div class="jp-kana-row"><div class="jp-kana-label">拨音</div><div class="jp-kana-cells"><div class="jp-kana'+(nnOn?' on':'')+'" onclick="speakKana(\''+JP_NN.k+'\')"><div class="jp-kana-k">'+JP_NN.k+'</div><div class="jp-kana-r">'+JP_NN.r+'</div>'+(nnOn?'<div class="jp-kana-ok">✓</div>':'')+'</div></div></div>';
-  const next=jpNextKana();
-  const nextHtml=next?('<div class="card jp-study" style="margin-top:12px">'+
-    '<div class="jp-small">接下来练习</div>'+
-    '<div class="jp-big">'+next.k+'</div>'+
-    '<div class="jp-reading">'+next.r+'</div>'+
-    '<div class="jp-tip">👄 '+next.tip+'</div>'+
-    '<div class="jp-actions"><button class="btn-ghost" onclick="speakKana(\''+next.k+'\')">🔊 听发音</button><button class="btn-primary" onclick="toggleKanaMastered(\''+next.k+'\')">✅ 已掌握</button></div>'+
-   '</div>'):'<div class="card jp-study" style="margin-top:12px">🎉 五十音全部掌握！</div>';
-  box.innerHTML='<div class="sec-title"><div class="left"><div class="dot" style="background:#2E7DD1"></div>五十音图（点卡片听发音）</div></div>'+
-   '<div class="card"><div class="jp-progress"><div class="jp-bar"><div class="jp-bar-fill" style="width:'+Math.round(m.length/jpKanaAll().length*100)+'%"></div></div><div class="jp-progress-txt">已掌握 '+m.length+' / '+jpKanaAll().length+' 个</div></div></div>'+
-   '<div class="jp-kana-table">'+rows+'</div>'+nextHtml;
- }catch(e){ console.warn('[jp kana]',e); }
-}
-function renderJpWords(box){
- try{
-  if(!jpKanaUnlocked()){
-   box.innerHTML='<div class="card jp-lock">🔒 先掌握 <b>あ行 + か行</b> 才能解锁单词学习<br><span style="font-size:12px;opacity:.7">单词需要假名基础哦</span></div>';
-   return;
-  }
-  const c=jpCurrentWord();
-  box.innerHTML='<div class="sec-title"><div class="left"><div class="dot" style="background:#2E7DD1"></div>单词学习（'+(c.idx+1)+'/'+JP_WORDS.length+'）</div></div>'+
-   '<div class="card jp-study">'+
-    '<div class="jp-big">'+c.w[0]+'</div>'+
-    '<div class="jp-reading">'+c.w[1]+'　<span class="jp-pitch">'+jpPitchMark(c.w[2])+'</span></div>'+
-    '<div class="jp-meaning">'+c.w[3]+'</div>'+
-    '<div class="jp-scene">🏷️ '+(c.w[4]||'')+'</div>'+
-    '<div class="jp-actions">'+
-     '<button class="btn-ghost" onclick="speakWord(\''+c.w[0]+'\')">🔊 听发音</button>'+
-     '<button class="btn-ghost" onclick="jpWordRead('+c.idx+')">🔁 跟读一遍</button>'+
-     '<button class="btn-primary" onclick="jpWordMaster('+c.idx+')">✅ 能读出来了</button>'+
+// ---------- 假名卡片（五步：看→听→跟读→跟写→通关） ----------
+function jpKanaCardHTML(k){
+  const seg=state.japanese.kana; const st=jpSegState(seg,k.k);
+  return '<div class="card jp-study">'+
+    '<div class="jp-step">第 1 步 看 · 第 2 步 听 · 第 3 步 跟读 · 第 4 步 跟写</div>'+
+    '<div class="jp-big">'+k.k+'</div>'+
+    '<div class="jp-reading">'+k.r+'</div>'+
+    '<div class="jp-tip">👄 '+k.tip+'</div>'+
+    '<div class="jp-five">'+
+     '<button class="jp-btn" onclick="jpKanaHear(\''+k.k+'\')">🔊 听发音（循环3遍）</button>'+
+     '<button class="jp-btn '+(st.read?'jp-btn-on':'')+'" onclick="jpKanaRead(\''+k.k+'\')">🎤 我能读出来了'+(st.read?' ✓':'')+'</button>'+
+     '<button class="jp-btn '+(st.write?'jp-btn-on':'')+'" onclick="jpKanaWrite(\''+k.k+'\')">✍️ 我能写出来了'+(st.write?' ✓':'')+'</button>'+
     '</div>'+
-    '<div class="jp-readdots" id="jp-readdots"></div>'+
-    '<div class="jp-hint">连读 3 遍自动提示进入下一个 · 自己判断像不像</div>'+
-   '</div>'+
-   '<div class="jp-actions" style="margin-top:10px"><button class="btn-ghost" onclick="jpWordPrev()">← 上一个</button><button class="btn-ghost" onclick="jpWordNext()">下一个 →</button></div>';
-  renderJpReadDots();
- }catch(e){ console.warn('[jp words]',e); }
+    '<div class="jp-status">跟读 '+(st.read?'☑':'☐')+'　跟写 '+(st.write?'☑':'☐')+'</div>'+
+    (st.read&&st.write?'<div class="jp-clear">🎉 已掌握！</div>':'<div class="jp-warn">⚠️ 完成跟读和跟写才能继续</div>')+
+    '<div id="jp-trace-box"></div>'+
+   '</div>';
 }
-function renderJpSentences(box){
- try{
-  if(!jpWordsUnlocked()){
-   box.innerHTML='<div class="card jp-lock">🔒 先掌握 <b>30 个单词</b> 才能解锁句子学习<br><span style="font-size:12px;opacity:.7">单词已掌握 '+(state.japanese.words.mastered.length)+'/100</span></div>';
-   return;
-  }
-  const c=jpCurrentSentence();
-  box.innerHTML='<div class="sec-title"><div class="left"><div class="dot" style="background:#2E7DD1"></div>句子学习（'+(c.idx+1)+'/'+JP_SENTENCES.length+'）</div></div>'+
-   '<div class="card jp-study">'+
-    '<div class="jp-big">'+c.s.jp+'</div>'+
-    '<div class="jp-reading">'+c.s.reading+'</div>'+
-    '<div class="jp-meaning">'+c.s.meaning+'</div>'+
-    '<div class="jp-scene">🏷️ '+(c.s.scene||'')+'</div>'+
-    (c.s.note?'<div class="jp-tip">💡 '+c.s.note+'</div>':'')+
-    '<div class="jp-br">'+c.s.br.map(function(b){return '<div class="jp-br-i"><b>'+b[0]+'</b> <span>'+b[1]+'</span> <i>'+b[2]+'</i></div>';}).join('')+'</div>'+
-    '<div class="jp-actions">'+
-     '<button class="btn-ghost" onclick="jpSentenceWords('+c.idx+')">🔊 逐词朗读</button>'+
-     '<button class="btn-ghost" onclick="jpSentenceFull('+c.idx+')">🔊 整句朗读</button>'+
-     '<button class="btn-primary" onclick="jpSentenceMaster('+c.idx+')">✅ 能读出来了</button>'+
+function jpKanaHear(k){
+  try{
+   if(!('speechSynthesis' in window)){ toast('此浏览器不支持语音合成'); return; }
+   window.speechSynthesis.cancel();
+   [0,700,1400].forEach(function(d){ setTimeout(function(){ try{ const u=new SpeechSynthesisUtterance(k); u.lang='ja-JP'; u.rate=0.85; u.pitch=1; window.speechSynthesis.speak(u); }catch(e){} }, d); });
+  }catch(e){}
+}
+function jpKanaRead(k){ try{ const seg=state.japanese.kana; jpSetRead(seg,k); jpRecompute(seg); saveJp(); jpKanaAfter(k); }catch(e){} }
+function jpKanaWrite(k){
+  const box=document.getElementById('jp-trace-box'); if(!box)return;
+  box.innerHTML='<div class="jp-trace-title">✍️ 照着灰色底稿描摹「'+k+'」</div>'+
+    '<canvas id="jp-trace" class="jp-trace-canvas" width="300" height="300"></canvas>'+
+    '<div class="jp-cov">覆盖度：<span id="jp-cov-val">0%</span></div>'+
+    '<div class="jp-trace-btns"><button class="btn-ghost" onclick="jpTraceUndo()">撤销上一笔</button><button class="btn-ghost" onclick="jpTraceClear()">清空重描</button><button class="btn-primary" onclick="jpTraceCheck(\''+k+'\')">✅ 描好了！检查</button></div>'+
+    '<div class="jp-trace-hint">从笔画起点顺着方向描，覆盖底稿 70% 以上即合格</div>';
+  jpTraceSetup(k);
+}
+function jpKanaAfter(k){
+  const seg=state.japanese.kana; const was=seg.mastered.indexOf(k)>=0;
+  jpRecompute(seg); saveJp();
+  if(!was && seg.mastered.indexOf(k)>=0){ markJpItem('kana','五十音「'+k+'」'); }
+  else { renderJapanese(); renderJpHomeCard(); renderToday(); }
+}
+// ---------- 单词卡片 ----------
+function jpWordsCardHTML(c){
+  const idx=c.idx, w=c.w; const seg=state.japanese.words; const st=jpSegState(seg,idx);
+  return '<div class="card jp-study">'+
+    '<div class="jp-step">第 1 步 看 · 第 2 步 听 · 第 3 步 跟读 · 第 4 步 跟写</div>'+
+    '<div class="jp-big">'+w[0]+'</div>'+
+    '<div class="jp-reading">'+w[1]+'　<span class="jp-pitch">'+jpPitchMark(w[2])+'</span></div>'+
+    '<div class="jp-meaning">'+w[3]+'</div>'+
+    '<div class="jp-scene">🏷️ '+(w[4]||'')+'</div>'+
+    '<div class="jp-five">'+
+     '<button class="jp-btn" onclick="speakWord(\''+w[0]+'\')">🔊 听发音</button>'+
+     '<button class="jp-btn '+(st.read?'jp-btn-on':'')+'" onclick="jpWordRead('+idx+')">🎤 我能读出来了'+(st.read?' ✓':'')+'</button>'+
     '</div>'+
-   '</div>'+
-   '<div class="jp-actions" style="margin-top:10px"><button class="btn-ghost" onclick="jpSentencePrev()">← 上一个</button><button class="btn-ghost" onclick="jpSentenceNext()">下一个 →</button></div>';
- }catch(e){ console.warn('[jp sentences]',e); }
+    '<div class="jp-write-box">'+
+     '<input id="jp-write-input" class="jp-write-input" placeholder="看中文「'+hEsc(w[3])+'」，写出日语（假名或罗马音）" onkeydown="if(event.key===\'Enter\')jpWordWriteCheck('+idx+')">'+
+     '<button class="jp-btn '+(st.write?'jp-btn-on':'')+'" onclick="jpWordWriteCheck('+idx+')">✍️ 我能写出来了'+(st.write?' ✓':'')+'</button>'+
+    '</div>'+
+    '<div class="jp-status">跟读 '+(st.read?'☑':'☐')+'　跟写 '+(st.write?'☑':'☐')+'</div>'+
+    (st.read&&st.write?'<div class="jp-clear">🎉 已掌握！</div>':'<div class="jp-warn">⚠️ 完成跟读和跟写才能继续</div>')+
+   '</div>';
 }
-function renderJpLogs(box){
- try{
-  const logsHtml=(state.japanese.logs||[]).slice().reverse().map(function(l){
-   const icon=l.type==='sentence'?'💬':(l.type==='word'?'🔤':(l.type==='kana'?'🇯🇵':'✍️'));
-   return '<div class="jp-log-item"><div class="jp-log-date">'+hEsc(l.date||'')+'</div><div class="jp-log-text">'+icon+' '+hEsc(l.text||'')+'</div></div>';
-  }).join('') || '<div class="empty-state"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg><p>还没有学习记录<br>从今日任务开始吧</p></div>';
-  box.innerHTML='<div class="sec-title"><div class="left"><div class="dot" style="background:#E8703A"></div>学习日志</div></div><div class="card jp-logs">'+logsHtml+'</div>'+
-   '<div class="jp-input-row"><input type="text" id="jp-input" class="jp-input" placeholder="今天学到的日语（自由记录）" onkeydown="if(event.key===\'Enter\')submitJpInput()"><button class="btn-ghost" onclick="submitJpInput()">提交</button></div>';
- }catch(e){ console.warn('[jp logs]',e); }
+function jpWordRead(idx){ try{ const seg=state.japanese.words; jpSetRead(seg,idx); speakWord(JP_WORDS[idx][0]); jpRecompute(seg); saveJp(); jpWordAfter(idx); }catch(e){} }
+function jpWordWriteCheck(idx){
+  try{
+   const seg=state.japanese.words; const w=JP_WORDS[idx]; const el=document.getElementById('jp-write-input');
+   const v=(el&&el.value||'').trim(); if(!v){ toast('先写点什么嘛'); return; }
+   const ok=(v===w[0])||(v.replace(/\s/g,'')===w[0])||(v.toLowerCase()===w[1].toLowerCase());
+   if(ok){ jpSetWrite(seg,idx); jpWordAfter(idx); }
+   else { toast('不对哦，再看看中文「'+w[3]+'」'); }
+  }catch(e){}
 }
-function speakKana(k){ speakJapanese(k); }
-function speakWord(jp){ speakJapanese(jp); }
-function toggleKanaMastered(k){
- try{
-  const m=state.japanese.kana.mastered; const i=m.indexOf(k);
-  if(i>=0)m.splice(i,1); else m.push(k);
-  saveJp(); renderJapanese(); renderJpHomeCard(); renderToday();
- }catch(e){}
-}
-function renderJpReadDots(){
- try{
-  const el=document.getElementById('jp-readdots'); if(!el)return;
-  const n=(window._jpReads&&window._jpReads[state.japanese.words.currentIndex])||0;
-  let s=''; for(let i=0;i<3;i++) s+='<span class="jp-dot'+(i<n?' on':'')+'"></span>';
-  el.innerHTML='跟读进度 '+s;
- }catch(e){}
-}
-function jpWordRead(idx){
- try{
-  const w=JP_WORDS[idx]; speakWord(w[0]);
-  window._jpReads=window._jpReads||{};
-  const n=(window._jpReads[idx]||0)+1; window._jpReads[idx]=n;
-  renderJpReadDots();
-  if(n>=3) toast('读够 3 遍啦，点“能读出来了”');
- }catch(e){}
-}
-function jpWordMaster(idx){
- try{
-  const w=JP_WORDS[idx]; const ms=state.japanese.words.mastered;
-  if(ms.indexOf(idx)<0)ms.push(idx);
-  let ni=idx+1; while(ni<JP_WORDS.length && ms.indexOf(ni)>=0)ni++;
-  if(ni<JP_WORDS.length)state.japanese.words.currentIndex=ni;
-  saveJp();
-  markJpItem('word', '单词「'+w[0]+'」');
- }catch(e){}
+function jpWordAfter(idx){
+  const seg=state.japanese.words; const w=JP_WORDS[idx]; const was=seg.mastered.indexOf(idx)>=0;
+  jpRecompute(seg); saveJp();
+  if(!was && seg.mastered.indexOf(idx)>=0){
+    let ni=idx+1; while(ni<JP_WORDS.length && seg.mastered.indexOf(ni)>=0)ni++;
+    if(ni<JP_WORDS.length)seg.currentIndex=ni;
+    markJpItem('word','单词「'+w[0]+'」');
+  } else { renderJapanese(); renderJpHomeCard(); renderToday(); }
 }
 function jpWordPrev(){ if(state.japanese.words.currentIndex>0){state.japanese.words.currentIndex--; saveJp(); renderJapanese();} }
 function jpWordNext(){ if(state.japanese.words.currentIndex<JP_WORDS.length-1){state.japanese.words.currentIndex++; saveJp(); renderJapanese();} }
+// ---------- 句子卡片 ----------
+function jpSentencesCardHTML(c){
+  const idx=c.idx, s=c.s; const seg=state.japanese.sentences; const st=jpSegState(seg,idx);
+  return '<div class="card jp-study">'+
+    '<div class="jp-step">第 1 步 看 · 第 2 步 听 · 第 3 步 跟读 · 第 4 步 跟写</div>'+
+    '<div class="jp-big">'+s.jp+'</div>'+
+    '<div class="jp-reading">'+s.reading+'</div>'+
+    '<div class="jp-meaning">'+s.meaning+'</div>'+
+    '<div class="jp-scene">🏷️ '+(s.scene||'')+'</div>'+
+    (s.note?'<div class="jp-tip">💡 '+hEsc(s.note)+'</div>':'')+
+    '<div class="jp-br">'+s.br.map(function(b){return '<div class="jp-br-i"><b>'+b[0]+'</b> <span>'+b[1]+'</span> <i>'+hEsc(b[2])+'</i></div>';}).join('')+'</div>'+
+    '<div class="jp-five">'+
+     '<button class="jp-btn" onclick="jpSentenceWords('+idx+')">🔊 逐词朗读</button>'+
+     '<button class="jp-btn" onclick="jpSentenceFull('+idx+')">🔊 整句朗读</button>'+
+     '<button class="jp-btn '+(st.read?'jp-btn-on':'')+'" onclick="jpSentenceRead('+idx+')">🎤 我能读出来了'+(st.read?' ✓':'')+'</button>'+
+    '</div>'+
+    '<div class="jp-write-box">'+
+     '<input id="jp-sent-input" class="jp-write-input" placeholder="看中文「'+hEsc(s.meaning)+'」，写出日语句子" onkeydown="if(event.key===\'Enter\')jpSentenceWriteCheck('+idx+')">'+
+     '<button class="jp-btn '+(st.write?'jp-btn-on':'')+'" onclick="jpSentenceWriteCheck('+idx+')">✍️ 我能写出来了'+(st.write?' ✓':'')+'</button>'+
+    '</div>'+
+    '<div class="jp-status">跟读 '+(st.read?'☑':'☐')+'　跟写 '+(st.write?'☑':'☐')+'</div>'+
+    (st.read&&st.write?'<div class="jp-clear">🎉 已掌握！</div>':'<div class="jp-warn">⚠️ 完成跟读和跟写才能继续</div>')+
+   '</div>';
+}
+function jpSentenceRead(idx){ try{ const seg=state.japanese.sentences; jpSetRead(seg,idx); jpRecompute(seg); saveJp(); jpSentenceAfter(idx); }catch(e){} }
+function jpSentenceWriteCheck(idx){
+  try{
+   const seg=state.japanese.sentences; const s=JP_SENTENCES[idx]; const el=document.getElementById('jp-sent-input');
+   const v=(el&&el.value||'').trim(); if(!v){ toast('先写点什么嘛'); return; }
+   const norm=function(t){return t.toLowerCase().replace(/[\s、。，.,!?！？~〜]/g,'');};
+   const ok=(norm(v)===norm(s.jp))||(norm(v)===norm(s.reading));
+   if(ok){ jpSetWrite(seg,idx); jpSentenceAfter(idx); }
+   else { toast('不对哦，再看看中文「'+s.meaning+'」'); }
+  }catch(e){}
+}
+function jpSentenceAfter(idx){
+  const seg=state.japanese.sentences; const s=JP_SENTENCES[idx]; const was=seg.mastered.indexOf(idx)>=0;
+  jpRecompute(seg); saveJp();
+  if(!was && seg.mastered.indexOf(idx)>=0){
+    let ni=idx+1; while(ni<JP_SENTENCES.length && seg.mastered.indexOf(ni)>=0)ni++;
+    if(ni<JP_SENTENCES.length)seg.currentIndex=ni;
+    markJpItem('sentence','句子「'+s.jp+'」');
+  } else { renderJapanese(); renderJpHomeCard(); renderToday(); }
+}
+function jpSentencePrev(){ if(state.japanese.sentences.currentIndex>0){state.japanese.sentences.currentIndex--; saveJp(); renderJapanese();} }
+function jpSentenceNext(){ if(state.japanese.sentences.currentIndex<JP_SENTENCES.length-1){state.japanese.sentences.currentIndex++; saveJp(); renderJapanese();} }
+// ---------- 标签渲染 ----------
+function renderJpKana(box){
+  try{
+   const m=state.japanese.kana.mastered||[];
+   let rows=JP_KANA_ROWS.map(function(row, ri){
+    const unlocked=jpRowUnlocked(ri);
+    let cells=row.items.map(function(it){
+     const on=m.indexOf(it[0])>=0;
+     const rd=(state.japanese.kana.read||[]).indexOf(it[0])>=0;
+     const wr=(state.japanese.kana.write||[]).indexOf(it[0])>=0;
+     let badge = on?'<div class="jp-kana-ok">✓</div>':(rd?'<div class="jp-kana-ok" style="color:#2E7DD1;font-size:10px">读</div>':(wr?'<div class="jp-kana-ok" style="color:#E8703A;font-size:10px">写</div>':''));
+     return '<div class="jp-kana'+(on?' on':'')+'" onclick="speakKana(\''+it[0]+'\')"><div class="jp-kana-k">'+it[0]+'</div><div class="jp-kana-r">'+it[1]+'</div>'+badge+'</div>';
+    }).join('');
+    return '<div class="jp-kana-row'+(unlocked?'':' jp-row-lock')+'"><div class="jp-kana-label">'+row.label+(unlocked?'':' 🔒')+'</div><div class="jp-kana-cells">'+cells+'</div></div>';
+   }).join('');
+   const nnUnlocked=jpRowUnlocked(99);
+   const nnOn=m.indexOf(JP_NN.k)>=0;
+   rows+='<div class="jp-kana-row'+(nnUnlocked?'':' jp-row-lock')+'"><div class="jp-kana-label">拨音'+(nnUnlocked?'':' 🔒')+'</div><div class="jp-kana-cells"><div class="jp-kana'+(nnOn?' on':'')+'" onclick="speakKana(\''+JP_NN.k+'\')"><div class="jp-kana-k">'+JP_NN.k+'</div><div class="jp-kana-r">'+JP_NN.r+'</div>'+(nnOn?'<div class="jp-kana-ok">✓</div>':'')+'</div></div></div>';
+   const next=jpNextKana();
+   const nextHtml = next ? ('<div style="margin-top:12px">'+jpKanaCardHTML(next)+'</div>') : '<div class="card jp-study" style="margin-top:12px">🎉 五十音全部掌握！去「单词」标签继续吧</div>';
+   box.innerHTML='<div class="sec-title"><div class="left"><div class="dot" style="background:#2E7DD1"></div>五十音图（点卡片听发音 · 🔒为未解锁行）</div></div>'+
+    '<div class="card"><div class="jp-progress"><div class="jp-bar"><div class="jp-bar-fill" style="width:'+Math.round(m.length/jpKanaAll().length*100)+'%"></div></div><div class="jp-progress-txt">已掌握 '+m.length+' / '+jpKanaAll().length+' 个</div></div></div>'+
+    '<div class="jp-kana-table">'+rows+'</div>'+nextHtml;
+  }catch(e){ console.warn('[jp kana]',e); }
+}
+function renderJpWords(box){
+  try{
+   if(!jpWordsUnlocked()){
+    box.innerHTML='<div class="card jp-lock">🔒 先掌握 <b>20 个假名</b> 才能解锁单词学习<br><span style="font-size:12px;opacity:.7">假名已掌握 '+(state.japanese.kana.mastered.length)+'/'+jpKanaAll().length+'</span></div>';
+    return;
+   }
+   const c=jpCurrentWord();
+   box.innerHTML='<div class="sec-title"><div class="left"><div class="dot" style="background:#2E7DD1"></div>单词学习（'+(c.idx+1)+'/'+JP_WORDS.length+'）</div></div>'+
+    jpWordsCardHTML(c)+
+    '<div class="jp-actions" style="margin-top:10px"><button class="btn-ghost" onclick="jpWordPrev()">← 上一个</button><button class="btn-ghost" onclick="jpWordNext()">下一个 →</button></div>';
+  }catch(e){ console.warn('[jp words]',e); }
+}
+function renderJpSentences(box){
+  try{
+   if(!jpSentencesUnlocked()){
+    box.innerHTML='<div class="card jp-lock">🔒 先掌握 <b>30 个单词</b> 才能解锁句子学习<br><span style="font-size:12px;opacity:.7">单词已掌握 '+(state.japanese.words.mastered.length)+'/'+JP_WORDS.length+'</span></div>';
+    return;
+   }
+   const c=jpCurrentSentence();
+   box.innerHTML='<div class="sec-title"><div class="left"><div class="dot" style="background:#2E7DD1"></div>句子学习（'+(c.idx+1)+'/'+JP_SENTENCES.length+'）</div></div>'+
+    jpSentencesCardHTML(c)+
+    '<div class="jp-actions" style="margin-top:10px"><button class="btn-ghost" onclick="jpSentencePrev()">← 上一个</button><button class="btn-ghost" onclick="jpSentenceNext()">下一个 →</button></div>';
+  }catch(e){ console.warn('[jp sentences]',e); }
+}
+function renderJpLogs(box){
+  try{
+   const logsHtml=(state.japanese.logs||[]).slice().reverse().map(function(l){
+    const icon=l.type==='sentence'?'💬':(l.type==='word'?'🔤':(l.type==='kana'?'🇯🇵':'✍️'));
+    return '<div class="jp-log-item"><div class="jp-log-date">'+hEsc(l.date||'')+'</div><div class="jp-log-text">'+icon+' '+hEsc(l.text||'')+'</div></div>';
+   }).join('') || '<div class="empty-state"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg><p>还没有学习记录<br>从今日任务开始吧</p></div>';
+   box.innerHTML='<div class="sec-title"><div class="left"><div class="dot" style="background:#E8703A"></div>学习日志</div></div><div class="card jp-logs">'+logsHtml+'</div>'+
+    '<div class="jp-input-row"><input type="text" id="jp-input" class="jp-input" placeholder="今天学到的日语（自由记录）" onkeydown="if(event.key===\'Enter\')submitJpInput()"><button class="btn-ghost" onclick="submitJpInput()">提交</button></div>';
+  }catch(e){ console.warn('[jp logs]',e); }
+}
+function speakKana(k){ speakJapanese(k); }
+function speakWord(jp){ speakJapanese(jp); }
 function jpSentenceWords(idx){
  try{
   const s=JP_SENTENCES[idx];
   if(!('speechSynthesis' in window)){ toast('此浏览器不支持语音'); return; }
   window.speechSynthesis.cancel();
-  s.br.forEach(function(b, i){
-   setTimeout(function(){ try{ const u=new SpeechSynthesisUtterance(b[0]); u.lang='ja-JP'; u.rate=0.6; u.pitch=1; window.speechSynthesis.speak(u); }catch(e){} }, i*900);
-  });
+  s.br.forEach(function(b, i){ setTimeout(function(){ try{ const u=new SpeechSynthesisUtterance(b[0]); u.lang='ja-JP'; u.rate=0.6; u.pitch=1; window.speechSynthesis.speak(u); }catch(e){} }, i*900); });
  }catch(e){}
 }
 function jpSentenceFull(idx){ const s=JP_SENTENCES[idx]; speakJapanese(s.jp, 0.9); }
-function jpSentenceMaster(idx){
- try{
-  const s=JP_SENTENCES[idx]; const ms=state.japanese.sentences.mastered;
-  if(ms.indexOf(idx)<0)ms.push(idx);
-  let ni=idx+1; while(ni<JP_SENTENCES.length && ms.indexOf(ni)>=0)ni++;
-  if(ni<JP_SENTENCES.length)state.japanese.sentences.currentIndex=ni;
-  saveJp();
-  markJpItem('sentence', '句子「'+s.jp+'」');
- }catch(e){}
+// ============ Canvas 描摹与覆盖度检测 ============
+let _jpTraceStrokes=[];
+let _jpTraceCur=null;
+let _jpTraceKana=null;
+function jpTraceSetup(k){
+  _jpTraceKana=k; _jpTraceStrokes=[];
+  const cv=document.getElementById('jp-trace'); if(!cv)return;
+  try{ jpTraceRender(cv); }catch(e){}
+  cv.onpointerdown=function(e){ e.preventDefault(); _jpTraceCur=[]; _jpTraceStrokes.push(_jpTraceCur); jpTraceAdd(e,cv); };
+  cv.onpointermove=function(e){ if(_jpTraceCur)jpTraceAdd(e,cv); };
+  cv.onpointerup=function(e){ _jpTraceCur=null; jpTraceUpdateCov(cv); };
+  cv.onpointerleave=function(e){ if(_jpTraceCur){ _jpTraceCur=null; jpTraceUpdateCov(cv); } };
 }
-function jpSentencePrev(){ if(state.japanese.sentences.currentIndex>0){state.japanese.sentences.currentIndex--; saveJp(); renderJapanese();} }
-function jpSentenceNext(){ if(state.japanese.sentences.currentIndex<JP_SENTENCES.length-1){state.japanese.sentences.currentIndex++; saveJp(); renderJapanese();} }
+function jpTracePos(e,cv){ const r=cv.getBoundingClientRect(); return {x:(e.clientX-r.left)/r.width, y:(e.clientY-r.top)/r.height}; }
+function jpTraceRender(cv){
+  const x=cv.getContext('2d'); x.clearRect(0,0,cv.width,cv.height);
+  jpTraceDrawBasePath(x,cv);
+  x.strokeStyle='#2E7DD1'; x.lineWidth=cv.width*0.035; x.lineCap='round'; x.lineJoin='round';
+  _jpTraceStrokes.forEach(function(st){ if(st.length<1)return; x.beginPath(); st.forEach(function(p,i){ const pp=jpPt(p); const px=pp[0]*cv.width, py=pp[1]*cv.height; if(i===0)x.moveTo(px,py); else x.lineTo(px,py); }); x.stroke(); });
+}
+function jpPt(p){ return (Array.isArray(p)) ? p : [p.x, p.y]; }
+function jpTraceDrawBasePath(x,cv){
+  const data=STROKE_DATA[_jpTraceKana]; if(!data)return;
+  x.strokeStyle='rgba(120,130,140,0.32)'; x.lineWidth=cv.width*0.05; x.lineCap='round'; x.lineJoin='round';
+  data.forEach(function(st){ x.beginPath(); st.forEach(function(p,i){ const pp=jpPt(p); const px=pp[0]*cv.width, py=pp[1]*cv.height; if(i===0)x.moveTo(px,py); else x.lineTo(px,py); }); x.stroke(); });
+}
+function jpTraceAdd(e,cv){ const p=jpTracePos(e,cv); if(_jpTraceCur.length){ const last=_jpTraceCur[_jpTraceCur.length-1]; const x=cv.getContext('2d'); x.strokeStyle='#2E7DD1'; x.lineWidth=cv.width*0.035; x.lineCap='round'; x.lineJoin='round'; x.beginPath(); x.moveTo(last.x*cv.width,last.y*cv.height); x.lineTo(p.x*cv.width,p.y*cv.height); x.stroke(); } _jpTraceCur.push(p); jpTraceUpdateCov(cv); }
+function jpRaster(strokes, W, H, lw){
+  const c=document.createElement('canvas'); c.width=W; c.height=H; const x=c.getContext('2d');
+  x.strokeStyle='#000'; x.fillStyle='#000'; x.lineWidth=lw; x.lineCap='round'; x.lineJoin='round';
+  strokes.forEach(function(st){ if(!st||st.length===0)return; if(st.length===1){ const pp=jpPt(st[0]); x.beginPath(); x.arc(pp[0]*W, pp[1]*H, lw/2, 0, 7); x.fill(); return; } x.beginPath(); st.forEach(function(p,i){ const pp=jpPt(p); const px=pp[0]*W, py=pp[1]*H; if(i===0)x.moveTo(px,py); else x.lineTo(px,py); }); x.stroke(); });
+  const d=x.getImageData(0,0,W,H).data; const g=new Uint8Array(W*H);
+  for(let i=3;i<d.length;i+=4){ if(d[i]>30) g[(i-3)/4]=1; } return g;
+}
+function jpTraceUpdateCov(cv){
+  const base=STROKE_DATA[_jpTraceKana]; if(!base){ return; }
+  const W=80,H=80,lw=9;
+  const bg=jpRaster(base,W,H,lw);
+  const ug=jpRaster(_jpTraceStrokes,W,H,lw);
+  let inter=0, total=0; for(let i=0;i<bg.length;i++){ if(bg[i]){ total++; if(ug[i])inter++; } }
+  const cov= total>0?inter/total:0; window._jpCov=window._jpCov||{}; window._jpCov[_jpTraceKana]=cov;
+  const el=document.getElementById('jp-cov-val'); if(el) el.textContent=Math.round(cov*100)+'%';
+}
+function jpTraceUndo(){ if(_jpTraceStrokes.length){ _jpTraceStrokes.pop(); const cv=document.getElementById('jp-trace'); if(cv)jpTraceRender(cv); jpTraceUpdateCov(cv); } }
+function jpTraceClear(){ _jpTraceStrokes=[]; const cv=document.getElementById('jp-trace'); if(cv)jpTraceRender(cv); jpTraceUpdateCov(cv); }
+function jpTraceCheck(k){
+  const cov= (window._jpCov&&window._jpCov[k])||0;
+  if(cov>=0.7){ jpSetWrite(state.japanese.kana, k); jpKanaAfter(k); toast('✅ 描得很好！跟写完成'); }
+  else { toast('再练练吧！覆盖度 '+Math.round(cov*100)+'%（需≥70%）'); }
+}
+function yesterdayStr(){ const d=new Date(); d.setDate(d.getDate()-1); return dateStr(d); }
 function markJpItem(kind, label){
  try{
   const jp=state.japanese; const today=todayStr();
@@ -6413,7 +6720,7 @@ function _slimValue(k,val,cap){
 
 // 收集本地白名单数据（全量，作为上传合并基底）。返回字符串包 {key: jsonString}
 function collectSyncData(){
- var pkg={_ts:new Date().toISOString(),_v:38}, total=0, changed=0, skipped=[];
+ var pkg={_ts:new Date().toISOString(),_v:39}, total=0, changed=0, skipped=[];
  var whitelistKeys=Object.keys(SYNC_WHITELIST);
  for(var wi=0;wi<whitelistKeys.length;wi++){
   var k=whitelistKeys[wi];
