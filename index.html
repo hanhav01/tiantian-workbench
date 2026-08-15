@@ -434,7 +434,8 @@ box-shadow:3px 3px 0 var(--ink);margin-bottom:12px}
 color:var(--text2);border:1.5px solid var(--border2);font-weight:600}
 .exp-comment{font-size:12px;color:var(--text2);margin-top:8px;line-height:1.6}
 .exp-cost{font-size:12px;color:var(--expense);font-weight:700;margin-top:6px}
-.exp-link-row{display:flex;gap:8px;margin-top:10px}
+.exp-uneval{font-size:11px;color:var(--warn);font-weight:700;margin-top:8px;background:var(--surface2);border:1.5px dashed var(--border2);border-radius:8px;padding:6px 10px}
+.exp-link-row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
 .exp-link-row .btn-ghost{font-size:11px;padding:6px 12px;min-height:34px}
 
 /* Filter chips */
@@ -1615,6 +1616,13 @@ align-items:center;justify-content:center;font-size:13px}
 
 <!-- ====== 工作 ====== -->
 <div id="tab-work" class="tab-content">
+<div class="subpage-head" style="position:sticky">
+<button class="sp-back" onclick="switchTab('mine')">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>
+</button>
+<h2>📋 任务看板</h2>
+<div style="width:38px"></div>
+</div>
 <div class="work-dash" id="work-dash">
 <div class="work-dash-head" onclick="toggleWorkDash()">
 <div class="wdh-l">
@@ -1759,6 +1767,7 @@ align-items:center;justify-content:center;font-size:13px}
 </div>
 <div class="subpage-body">
 <div class="filter-row" id="exp-filters"></div>
+<div class="filter-row" id="exp-eval-filters" style="margin-top:-2px"></div>
 <div id="exp-list"></div>
 <div class="sec-title">
 <div class="left"><div class="dot" style="background:var(--warn)"></div>下次想去</div>
@@ -2226,6 +2235,7 @@ let state={
  waterTimes:DB.get('waterTimes',['09:00','11:30','14:00','16:30','19:00','21:00']),
  waterRemindOn:DB.get('waterRemindOn',true),
  exploreFilter:'all',
+ exploreEvalFilter:'all',
  mediaFilter:'all',
  points:DB.get('points',1000),
  pointsLog:DB.get('pointsLog',[]),
@@ -4404,7 +4414,12 @@ function renderExplore(){
  const cats=['全部','咖啡厅','火锅','日料','中餐','书店','甜品','酒吧','其他'];
  const filters=document.getElementById('exp-filters');
  filters.innerHTML=cats.map(c=>'<div class="filter-chip '+(state.exploreFilter===c||(c==='全部'&&state.exploreFilter==='all')?'active':'')+'" onclick="setExpFilter(\''+(c==='全部'?'all':c)+'\')">'+c+'</div>').join('');
- const visited=state.explores.filter(e=>e.status==='visited'&&(state.exploreFilter==='all'||e.cat===state.exploreFilter));
+ const evals=[['all','全部'],['rated','已评价'],['unrated','未评价']];
+ const ef=document.getElementById('exp-eval-filters');
+ if(ef)ef.innerHTML=evals.map(x=>'<div class="filter-chip '+(state.exploreEvalFilter===x[0]?'active':'')+'" onclick="setExpEvalFilter(\''+x[0]+'\')">'+x[1]+'</div>').join('');
+ const ev=state.exploreEvalFilter;
+ const isRated=e=>(e.rating>0)||(e.comment&&e.comment.trim())||(e.tags&&e.tags.length>0);
+ const visited=state.explores.filter(e=>e.status==='visited'&&(state.exploreFilter==='all'||e.cat===state.exploreFilter)&&(ev==='all'||(ev==='rated'&&isRated(e))||(ev==='unrated'&&!isRated(e))));
  const want=state.explores.filter(e=>e.status==='want');
  document.getElementById('exp-list').innerHTML=visited.map(renderExpCard).join('')||'<div class="empty-state"><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg><p>还没有探店记录<br>去发现一家好店吧</p></div>';
  document.getElementById('exp-want').innerHTML=want.map(e=>
@@ -4412,11 +4427,17 @@ function renderExplore(){
  ).join('')||'<div class="empty-state" style="padding:20px"><p style="font-size:12px">还没有想去的地方</p></div>';
 }
 function renderExpCard(e){
- const stars='★'.repeat(e.rating)+'☆'.repeat(5-e.rating);
+ const r=e.rating||0;
+ const stars='★'.repeat(r)+'☆'.repeat(5-r);
+ const rated=(r>0)||(e.comment&&e.comment.trim())||(e.tags&&e.tags.length>0);
  const imgsHtml=e.imgs&&e.imgs.length>0?'<div class="exp-imgs">'+e.imgs.slice(0,3).map(src=>'<img src="'+src+'" alt="">').join('')+'</div>':'';
- return '<div class="exp-card">'+imgsHtml+'<div class="exp-body"><div class="exp-head"><div class="exp-name">'+e.name+'</div><div class="exp-stars">'+stars+'</div></div><div class="exp-meta"><span>'+e.cat+'</span><span>'+e.date+'</span><span>'+e.addr+'</span></div>'+(e.tags.length>0?'<div class="exp-tags">'+e.tags.map(t=>'<span class="exp-tag">'+t+'</span>').join('')+'</div>':'')+(e.comment?'<div class="exp-comment">'+e.comment+'</div>':'')+(e.cost?'<div class="exp-cost">人均 ¥'+e.cost+'</div>':'')+'<div class="exp-link-row"><button class="btn-ghost" onclick="linkExpMedia(\''+e.id+'\')">在这读完的</button><button class="btn-ghost" onclick="linkExpCost(\''+e.id+'\')">记消费</button><button class="btn-ghost" onclick="delExplore(\''+e.id+'\')">删除</button></div></div></div>';
+ const tagsHtml=(e.tags&&e.tags.length>0)?'<div class="exp-tags">'+e.tags.map(t=>'<span class="exp-tag">'+t+'</span>').join('')+'</div>':'';
+ const commentHtml=e.comment?'<div class="exp-comment">'+e.comment+'</div>':'';
+ const costHtml=e.cost?'<div class="exp-cost">人均 ¥'+e.cost+'</div>':'';
+ return '<div class="exp-card">'+imgsHtml+'<div class="exp-body"><div class="exp-head"><div class="exp-name">'+e.name+'</div><div class="exp-stars">'+stars+'</div></div><div class="exp-meta"><span>'+e.cat+'</span><span>'+e.date+'</span><span>'+e.addr+'</span></div>'+(rated?'':('<div class="exp-uneval">还没评价，点「✏️ 评价」分享感受吧</div>'))+tagsHtml+commentHtml+costHtml+'<div class="exp-link-row"><button class="btn-ghost" onclick="openEvaluateExplore(\''+e.id+'\')">✏️ 评价</button><button class="btn-ghost" onclick="linkExpMedia(\''+e.id+'\')">在这读完的</button><button class="btn-ghost" onclick="linkExpCost(\''+e.id+'\')">记消费</button><button class="btn-ghost" onclick="delExplore(\''+e.id+'\')">删除</button></div></div></div>';
 }
 function setExpFilter(cat){state.exploreFilter=cat;renderExplore()}
+function setExpEvalFilter(v){state.exploreEvalFilter=v;renderExplore()}
 function visitWant(id){
  const e=state.explores.find(x=>x.id===id);
  if(e){e.status='visited';e.date=todayStr();DB.set('explores',state.explores);renderExplore();toast('已转为打卡记录')}
@@ -4494,6 +4515,36 @@ function linkExpCost(id){
  closeConfirm();
  window._pendingExpId=id;
  setTimeout(()=>{openRecordModal({type:'expense',cat:'餐饮',sub:'外食',amount:e.cost||'',note:e.name,tags:[]})},200);
+}
+const EXP_EVAL_TAGS=['下次还来','环境超好','宠物友好','适合办公','性价比高','踩雷了','服务好','出片圣地'];
+function openEvaluateExplore(id){
+ const e=state.explores.find(x=>x.id===id);
+ if(!e)return;
+ const m=document.getElementById('modal');
+ const starsHtml=[1,2,3,4,5].map(i=>'<div class="cat-btn '+(i<=(e.rating||0)?'active':'')+'" data-r="'+i+'"><span>'+'★'.repeat(i)+'</span></div>').join('');
+ const tagsHtml=EXP_EVAL_TAGS.map(t=>'<div class="tag-chip '+((e.tags||[]).includes(t)?'active':'')+'" data-t="'+t+'">'+t+'</div>').join('');
+ m.innerHTML='<div class="modal-h"><h2>✏️ 评价「'+esc(e.name)+'」</h2><div class="modal-close" onclick="dismissModal()"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></div></div>'+
+  '<div class="form-group"><label class="form-label">评分（1-5 星）</label><div class="cat-grid" id="ev-rating">'+starsHtml+'</div></div>'+
+  '<div class="form-group"><label class="form-label">点评</label><textarea id="ev-comment" rows="3" placeholder="写几句感受吧…">'+esc(e.comment||'')+'</textarea></div>'+
+  '<div class="form-group"><label class="form-label">快速标签（点一下选中）</label><div class="tag-row" id="ev-tags">'+tagsHtml+'</div></div>'+
+  '<div class="form-group"><label class="form-label">人均消费（可选）</label><input type="number" id="ev-cost" value="'+(e.cost||'')+'" placeholder="0" inputmode="decimal"></div>'+
+  '<input type="hidden" id="ev-id" value="'+id+'">'+
+  '<button class="btn-primary" onclick="saveEvaluateExplore()">保存评价</button>';
+ openModal();
+ document.querySelectorAll('#ev-rating .cat-btn').forEach(b=>b.onclick=()=>{document.querySelectorAll('#ev-rating .cat-btn').forEach(x=>x.classList.remove('active'));b.classList.add('active')});
+ document.querySelectorAll('#ev-tags .tag-chip').forEach(c=>c.onclick=()=>c.classList.toggle('active'));
+}
+function saveEvaluateExplore(){
+ const id=document.getElementById('ev-id').value;
+ const e=state.explores.find(x=>x.id===id);
+ if(!e){toast('记录找不到');return;}
+ e.rating=parseInt(document.querySelector('#ev-rating .cat-btn.active')?.dataset.r)||0;
+ e.comment=document.getElementById('ev-comment').value.trim();
+ e.tags=[...document.querySelectorAll('#ev-tags .tag-chip.active')].map(c=>c.dataset.t);
+ e.cost=parseFloat(document.getElementById('ev-cost').value)||0;
+ DB.set('explores',state.explores);
+ closeModal();renderExplore();renderToday();
+ toast('评价已保存 ✓');
 }
 
 
@@ -5090,7 +5141,7 @@ function openSettings(){
  '<div class="form-group"><label class="form-label">导出备份</label><div style="display:flex;gap:8px"><select id="export-fmt" style="flex:1;min-height:44px;border:1px solid var(--border2);border-radius:10px;padding:0 10px;font-size:13px;background:var(--bg)"><option value="json">JSON 完整备份</option><option value="bills">账单 CSV</option><option value="media">书影音 CSV</option></select><button class="btn-ghost" onclick="doExportByFmt()" style="white-space:nowrap;min-height:44px">导出</button></div></div>'+
  '<div style="display:flex;gap:8px;margin-bottom:8px"><button class="btn-ghost" onclick="importBackup()" style="flex:1">📥 导入恢复</button><button class="btn-ghost" onclick="clearAllData()" style="flex:1;color:var(--expense);border-color:var(--expense)">清空所有数据</button></div>'+
  '<div id="backup-history"></div>'+
- '<div class="sec-title"><div class="left" style="color:#3B82C4">数据同步</div><span style="font-size:10px;background:#E60012;color:#fff;padding:2px 8px;border-radius:6px;font-weight:700">v43</span></div>'
+ '<div class="sec-title"><div class="left" style="color:#3B82C4">数据同步</div><span style="font-size:10px;background:#E60012;color:#fff;padding:2px 8px;border-radius:6px;font-weight:700">v44</span></div>'
 +'<div class="card-tight card mb8" style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:13px">连服务器自动同步（手机电脑共享）</span><button class="btn-ghost" id="supa-on-btn" onclick="supaToggleOn()" style="font-size:12px;padding:6px 14px;min-height:34px">'+(DB.get('sync_on',false)?'已开启':'已关闭')+'</button></div>'
 +'<div class="form-group"><label class="form-label">Supabase 项目 URL</label><input type="text" id="sync-url" value="'+hEsc(DB.get('sync_url','https://zmlkhnhjqcpzhywrgtiw.supabase.co'))+'" placeholder="https://xxxx.supabase.co"></div>'
 +'<div class="form-group"><label class="form-label">anon / public key</label><input type="text" id="sync-key" value="'+hEsc(DB.get('sync_key','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InptbGtobmhqcWNwemh5d3JndGl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYxMjY2NjcsImV4cCI6MjEwMTcwMjY2N30.hZnlONauB0y20wMEF7OG5kRn2uR2PCvcVEfrAE9FoVI'))+'" placeholder="eyJhbGciOi... 或 sb_publishable_..."></div>'
