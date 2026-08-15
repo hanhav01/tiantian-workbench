@@ -918,6 +918,10 @@ border:2.5px solid var(--ink);box-shadow:2px 2px 0 var(--ink);color:var(--ink)}
 .sp-back:active,.sp-add:active{transform:translate(1px,1px);box-shadow:1px 1px 0 var(--ink)}
 .sp-back svg,.sp-add svg{width:19px;height:19px}
 .subpage-body{padding:14px calc(16px + var(--safe-r)) calc(30px + var(--safe)) calc(16px + var(--safe-l))}
+.db-tabs{display:flex;gap:6px;margin-bottom:12px;background:var(--surface);border:2.5px solid var(--ink);border-radius:12px;padding:4px}
+.db-tab{flex:1;border:none;background:transparent;color:var(--text3);font-size:13px;font-weight:700;padding:8px 4px;border-radius:9px;cursor:pointer;transition:.15s}
+.db-tab.active{background:var(--primary);color:#fff;box-shadow:2px 2px 0 var(--ink)}
+.db-tab:active{transform:translate(1px,1px)}
 
 /* ==================== 分析报告 ==================== */
 .rep-hero{background:linear-gradient(135deg,#6C5CE7,#A78BFA);border:2.5px solid var(--ink);
@@ -1436,6 +1440,11 @@ align-items:center;justify-content:center;font-size:13px}
 <div id="jp-home-prog" style="font-size:11px;color:#2E7DD1;margin:2px 0 4px;font-weight:600"></div>
 <div id="jp-home-today" style="font-size:14px;font-weight:700"></div>
 </div>
+<!-- 待办事项快捷区 -->
+<div class="today-card todo-quick" id="todo-quick" onclick="switchTab('work')" style="cursor:pointer;background:linear-gradient(135deg,#FFF3E0,#FFE0B2);color:#5D4037">
+<h3>📋 待办事项 <span id="todo-count" style="float:right;font-size:11px;font-weight:600;color:#E65100"></span></h3>
+<div id="todo-quick-sub" style="font-size:13px;font-weight:600">点击查看今日任务</div>
+</div>
 <!-- Today's Urgent -->
 <div class="today-card" id="today-card">
 <h3>
@@ -1682,76 +1691,52 @@ align-items:center;justify-content:center;font-size:13px}
 <div id="tab-mine" class="tab-content">
 <div class="mine-hero" id="mine-hero"></div>
 <div class="mine-stats" id="mine-stats"></div>
-<div id="mine-spend-summary" class="card" style="margin:0 12px 10px"></div>
 
-<div class="sec-title">
-<div class="left"><div class="dot" style="background:var(--exp)"></div>我的模块</div>
-</div>
+<div class="sec-title"><div class="left"><div class="dot" style="background:var(--exp)"></div>我的模块</div></div>
 <div class="mine-menu">
-<div class="mine-item" onclick="openHabits()">
-<div class="mi-ic" style="background:#FFE9A8"><svg viewBox="0 0 24 24" fill="none" stroke="#C8930A" stroke-width="2"><path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 01-10 0V4zM7 4H4v2a3 3 0 003 3M17 4h3v2a3 3 0 01-3 3"/></svg></div>
-<div class="mi-tx"><div class="mi-t">💪 我的习惯</div><div class="mi-s" id="mine-habit-sub">今天还没动哦</div></div>
-</div>
-<div class="mine-item" onclick="switchTab('media')">
-<div class="mi-ic" style="background:#E4E1FF"><svg viewBox="0 0 24 24" fill="none" stroke="#5C4BB8" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg></div>
-<div class="mi-tx"><div class="mi-t">📚 春日部文艺部</div><div class="mi-s" id="mine-media-sub">小新在等你推荐</div></div>
-</div>
-<div class="mine-item" onclick="openExploreSub()">
-<div class="mi-ic" style="background:#FFE9CC"><svg viewBox="0 0 24 24" fill="none" stroke="#C97B1F" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg></div>
-<div class="mi-tx"><div class="mi-t">🍜 春日部美食地图</div><div class="mi-s" id="mine-exp-sub">记录去过的店</div></div>
-</div>
-<div class="mine-item" onclick="openAnnivSub()">
-<div class="mi-ic" style="background:#FFD7D7"><svg viewBox="0 0 24 24" fill="none" stroke="#E60012" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg></div>
-<div class="mi-tx"><div class="mi-t">📅 纪念日闹钟</div><div class="mi-s" id="mine-anniv-sub">小新正在睡大觉</div></div>
+<div class="mine-item" onclick="openDataBoard()">
+<div class="mi-ic" style="background:#D6EEFF"><svg viewBox="0 0 24 24" fill="none" stroke="#0072BC" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="M8 9h8M8 13h5"/></svg></div>
+<div class="mi-tx"><div class="mi-t">📊 数据看板</div><div class="mi-s">周报·月报·文艺诊所·精神账单</div></div>
 </div>
 <div class="mine-item" onclick="openJapanese()">
 <div class="mi-ic" style="background:#D9ECFF"><svg viewBox="0 0 24 24" fill="none" stroke="#2E7DD1" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 010 20M12 2a15 15 0 000 20"/></svg></div>
 <div class="mi-tx"><div class="mi-t">📚 小新的日语课</div><div class="mi-s" id="mine-jp-sub">每天一句，积少成多</div></div>
 </div>
+<div class="mine-item" onclick="openHabits();setTimeout(function(){scrollToId('cert-wall');},120)">
+<div class="mi-ic" style="background:#FFE9A8"><svg viewBox="0 0 24 24" fill="none" stroke="#C8930A" stroke-width="2"><path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 01-10 0V4zM7 4H4v2a3 3 0 003 3M17 4h3v2a3 3 0 01-3 3"/></svg></div>
+<div class="mi-tx"><div class="mi-t">🏆 奖状墙</div><div class="mi-s">幼稚园成就一览</div></div>
+</div>
+<div class="mine-item" onclick="openExploreSub()">
+<div class="mi-ic" style="background:#FFE9CC"><svg viewBox="0 0 24 24" fill="none" stroke="#C97B1F" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg></div>
+<div class="mi-tx"><div class="mi-t">🍜 探店打卡</div><div class="mi-s" id="mine-exp-sub">记录去过的店</div></div>
+</div>
+<div class="mine-item" onclick="openAnnivSub()">
+<div class="mi-ic" style="background:#FFD7D7"><svg viewBox="0 0 24 24" fill="none" stroke="#E60012" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg></div>
+<div class="mi-tx"><div class="mi-t">📅 纪念日闹钟</div><div class="mi-s" id="mine-anniv-sub">小新正在睡大觉</div></div>
+</div>
+<div class="mine-item" onclick="switchTab('work')">
+<div class="mi-ic" style="background:#E0F7FA"><svg viewBox="0 0 24 24" fill="none" stroke="#00838F" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 2v4M16 2v4M3 10h18M9 14h6"/></svg></div>
+<div class="mi-tx"><div class="mi-t">📋 任务看板</div><div class="mi-s" id="mine-task-sub">工作与待办事项</div></div>
+</div>
+<div class="mine-item" onclick="switchTab('media')">
+<div class="mi-ic" style="background:#E4E1FF"><svg viewBox="0 0 24 24" fill="none" stroke="#5C4BB8" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg></div>
+<div class="mi-tx"><div class="mi-t">📺 书影音</div><div class="mi-s" id="mine-media-sub">小新在等你推荐</div></div>
+</div>
+</div>
+
+<div class="sec-title"><div class="left"><div class="dot" style="background:var(--hab)"></div>设置与备份</div></div>
+<div class="mine-menu">
 <div class="mine-item" onclick="openSettings()">
 <div class="mi-ic" style="background:#EDEAE2"><svg viewBox="0 0 24 24" fill="none" stroke="#6B5B4F" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v4m0 12v4M22 12h-4M6 12H2"/></svg></div>
-<div class="mi-tx"><div class="mi-t">⚙️ 野原家设定</div><div class="mi-s">零花钱积分、备份、关于</div></div>
+<div class="mi-tx"><div class="mi-t">⚙️ 野原家设定</div><div class="mi-s">积分·夜间模式·数据同步</div></div>
+</div>
+<div class="mine-item" onclick="openSettings();setTimeout(function(){scrollToId('settings-data-mgmt');},120)">
+<div class="mi-ic" style="background:#DFF5E1"><svg viewBox="0 0 24 24" fill="none" stroke="#2E7D32" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg></div>
+<div class="mi-tx"><div class="mi-t">💾 数据备份</div><div class="mi-s">导出·恢复·清空</div></div>
 </div>
 </div>
 
-<div class="sec-title">
-<div class="left"><div class="dot" style="background:var(--income)"></div>数据备份（重要）</div>
-</div>
-<div class="card">
-<div class="small mb8">数据只存在这台设备的浏览器里。换手机、清缓存前一定要导出，不然真的会没。</div>
-<div class="mine-btn-grid">
-<button class="btn-ghost" onclick="exportData()">导出 JSON 备份</button>
-<button class="btn-ghost" onclick="document.getElementById('import-file').click()">导入恢复</button>
-<button class="btn-ghost" onclick="exportCSV()">导出账单 CSV</button>
-<button class="btn-ghost" onclick="exportMediaCSV()">导出书影音 CSV</button>
-</div>
-</div>
-
-<div class="sec-title">
-<div class="left"><div class="dot" style="background:var(--hab)"></div>春日部报告</div>
-</div>
-<div class="mine-menu">
-<div class="mine-item" onclick="generateWeeklyReport()">
-<div class="mi-ic" style="background:#D6EEFF"><svg viewBox="0 0 24 24" fill="none" stroke="#0072BC" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="M8 9h8M8 13h5"/></svg></div>
-<div class="mi-tx"><div class="mi-t">春日部新闻报</div><div class="mi-s">本周都干了啥</div></div>
-</div>
-<div class="mine-item" onclick="generateMonthlyReport()">
-<div class="mi-ic" style="background:#FFD9D9"><svg viewBox="0 0 24 24" fill="none" stroke="#E60012" stroke-width="2"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg></div>
-<div class="mi-tx"><div class="mi-t">机智可爱田财政赤字报告</div><div class="mi-s">本月钱都去哪了</div></div>
-</div>
-<div class="mine-item" onclick="openMediaReport()">
-<div class="mi-ic" style="background:#E4E1FF"><svg viewBox="0 0 24 24" fill="none" stroke="#5C4BB8" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg></div>
-<div class="mi-tx"><div class="mi-t">小新文艺诊所</div><div class="mi-s">喜好分析报告</div></div>
-</div>
-<div class="mine-item" onclick="openSpiritReport()">
-<div class="mi-ic" style="background:#FFDCE3"><svg viewBox="0 0 24 24" fill="none" stroke="#C2185B" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div>
-<div class="mi-tx"><div class="mi-t">精神食粮账单</div><div class="mi-s">为爱好花了多少钱</div></div>
-</div>
-</div>
-
-<div class="sec-title">
-<div class="left"><div class="dot" style="background:var(--text3)"></div>关于</div>
-</div>
+<div class="sec-title"><div class="left"><div class="dot" style="background:var(--text3)"></div>关于</div></div>
 <div class="mine-menu">
 <div class="mine-item" onclick="openAbout()">
 <div class="mi-ic" style="background:#FFF2C4"><svg viewBox="0 0 24 24" fill="none" stroke="#8A6D1B" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg></div>
@@ -1809,6 +1794,24 @@ align-items:center;justify-content:center;font-size:13px}
 <div class="subpage-body" id="spirit-body"></div>
 </div>
 
+<!-- ====== 数据看板二级页 ====== -->
+<div class="subpage" id="subpage-databoard">
+<div class="subpage-head">
+<button class="sp-back" onclick="closeSubpage('subpage-databoard')">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>
+</button>
+<h2>📊 数据看板</h2>
+<div style="width:38px"></div>
+</div>
+<div class="db-tabs">
+<button class="db-tab active" data-k="week" onclick="dataBoardTab('week')">周报</button>
+<button class="db-tab" data-k="month" onclick="dataBoardTab('month')">月报</button>
+<button class="db-tab" data-k="media" onclick="dataBoardTab('media')">文艺诊所</button>
+<button class="db-tab" data-k="spirit" onclick="dataBoardTab('spirit')">精神账单</button>
+</div>
+<div class="subpage-body" id="databoard-body"></div>
+</div>
+
 <button class="fab" id="fab" onclick="fabAction()">
 <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
 </button>
@@ -1818,8 +1821,6 @@ align-items:center;justify-content:center;font-size:13px}
 <svg viewBox="0 0 24 24"><path d="M3 12l9-9 9 9M5 10v10h14V10"/></svg>今天</div>
 <div class="tab-item" data-tab="accounting" onclick="switchTab('accounting')">
 <svg viewBox="0 0 24 24"><path d="M3 8h18M3 12h18M3 16h12"/><circle cx="19" cy="16" r="2"/></svg>记账</div>
-<div class="tab-item" data-tab="work" onclick="switchTab('work')">
-<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 2v4M16 2v4M3 10h18M9 14h6"/></svg>工作</div>
 <div class="tab-item" data-tab="shopping" onclick="switchTab('shopping')">
 <svg viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><path d="M3 6h18M16 10a4 4 0 01-8 0"/></svg>清单</div>
 <div class="tab-item" data-tab="mine" onclick="switchTab('mine')">
@@ -2507,6 +2508,7 @@ function renderToday(){
  renderJpHomeCard();
  renderTimeline();
  renderWorkHomeHint();
+ renderTodoQuick();
  checkEveningReminder();
  checkNonEssentialSpending();
  renderNightWarnings();
@@ -3094,7 +3096,7 @@ function applyPrivacy(){
 }
 
 // --- Weekly Report ---
-function generateWeeklyReport(){
+function generateWeeklyReport(host){
  const today=new Date();
  const weekStart=new Date(today);weekStart.setDate(weekStart.getDate()-7);
  const ws=dateStr(weekStart);
@@ -3137,8 +3139,7 @@ function generateWeeklyReport(){
   lossHtml+='</div>';
  }
  const m=document.getElementById('modal');
- m.innerHTML=`<div class="modal-h"><h2>春日部新闻报</h2><div class="modal-close" onclick="dismissModal()"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></div></div>
- <div class="wr-msg">${msg}</div>
+ const inner=`<div class="wr-msg">${msg}</div>
  ${lossHtml}
  <div class="wr-section">
   <div class="bold mb8" style="font-size:14px">习惯打卡</div>
@@ -3159,12 +3160,13 @@ function generateWeeklyReport(){
   <div class="wr-stat"><span>精神食粮花费</span><span class="wr-val" style="color:var(--media)">${fmtMoney(weekSpirit)}</span></div>
  </div>
  ${severeCount>0?'<div class="wr-msg" style="color:var(--expense)">广志旁白：看来下个月又要加班还贷了……</div>':''}
- <button class="btn-ghost" onclick="closeModal()" style="width:100%;margin-top:10px">关掉报纸</button>`;
- openModal();
+ <button class="btn-ghost" onclick="${(host?'closeSubpage(\'subpage-databoard\')':'closeModal()')}" style="width:100%;margin-top:10px">关掉报纸</button>`;
+ if(host){ host.innerHTML=inner; }
+ else { const m=document.getElementById('modal'); m.innerHTML='<div class="modal-h"><h2>春日部新闻报</h2><div class="modal-close" onclick="dismissModal()"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></div></div>'+inner; openModal(); }
 }
 
 // --- Monthly Report (机智可爱田财政赤字报告) ---
-function generateMonthlyReport(){
+function generateMonthlyReport(host){
  const month=todayStr().slice(0,7);
  const monthExp=state.records.filter(r=>r.type==='expense'&&r.date.startsWith(month));
  const totalExp=monthExp.reduce((s,r)=>s+r.amount,0);
@@ -3184,9 +3186,7 @@ function generateMonthlyReport(){
   lossHtml+=lossItems.map(i=>`<div class="loss-equiv-item">${i.qty} ${i.unit} ${i.name}</div>`).join('');
   lossHtml+='</div>';
  }
- const m=document.getElementById('modal');
- m.innerHTML=`<div class="modal-h"><h2>机智可爱田财政赤字报告</h2><div class="modal-close" onclick="dismissModal()"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></div></div>
- <div class="wr-section">
+const inner=`<div class="wr-section">
   <div class="bold mb8" style="font-size:14px">${month}月支出概览</div>
   <div class="wr-stat"><span>总支出</span><span class="wr-val">${fmtMoney(totalExp)}</span></div>
   <div class="wr-stat"><span>冲动消费</span><span class="wr-val" style="color:var(--expense)">${fmtMoney(impulseExp)}</span></div>
@@ -3208,8 +3208,9 @@ function generateMonthlyReport(){
   <div class="wr-stat"><span>当前积分</span><span class="wr-val">${state.points} 点</span></div>
   <div class="wr-stat"><span>无冲动连续</span><span class="wr-val">${state.noImpulseStreak} 天</span></div>
  </div>
- <button class="btn-ghost" onclick="closeModal()" style="width:100%;margin-top:10px">关掉报告</button>`;
- openModal();
+ <button class="btn-ghost" onclick="${(host?'closeSubpage(\'subpage-databoard\')':'closeModal()')}" style="width:100%;margin-top:10px">关掉报告</button>`;
+if(host){ host.innerHTML=inner; }
+else { const m=document.getElementById('modal'); m.innerHTML='<div class="modal-h"><h2>机智可爱田财政赤字报告</h2><div class="modal-close" onclick="dismissModal()"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></div></div>'+inner; openModal(); }
 }
 
 // ============ Backup Hint ============
@@ -4792,7 +4793,7 @@ function openMediaReport(){
  renderMediaReport();
  openSubpage('subpage-report');
 }
-function renderMediaReport(){
+function renderMediaReport(host){
  const a=state.mediaCache&&state.mediaCache.analysis?state.mediaCache.analysis:analyzeMedia();
  const all=state.media||[];
  const done=all.filter(function(m){return m.status!=='want';});
@@ -4833,7 +4834,7 @@ function renderMediaReport(){
  }
  html+=callout;
  html+='<div class="rep-sec"><button class="btn-ghost" onclick="closeSubpage(\'subpage-report\')" style="width:100%">收起诊断书</button></div>';
- document.getElementById('report-body').innerHTML=html;
+ const rb=document.getElementById('report-body'); if(host) host.innerHTML=html; else if(rb) rb.innerHTML=html;
 }
 function exaggerateGenre(k){
  const map={'文学':'你是个文艺青年，风间都得叫你一声前辈。','科幻':'你的脑子已经飞到银河系了，地球装不下你。','悬疑':'你享受被骗的过程，反转越多越上头。','爱情':'糖分超标，小心蛀牙（小新认证）。','历史':'以史为镜，照出你是个文化人。','哲学':'想太多系列，广志都怕跟你聊天。','漫画':'童心未泯，和小新是好朋友。','治愈':'你需要被治愈，世界也需要你被治愈。','热血':'看完就想爬起来干大事，干劲满满。','纪录':'你相信真实的力量，比电视剧带劲。','喜剧':'笑点低但快乐多，生活需要你。','恐怖':'胆子比青椒还小还想吓自己，佩服。','传记':'你爱看别人怎么活，顺便思考自己怎么活。','社科':'你关心世界运转的底层逻辑。','动画':'二次元之心永不灭。','摇滚':'吵但不吵闹，灵魂在燃烧。','民谣':'安静地矫情，是种高级浪漫。','古典':'高雅得美冴都想给你鼓掌。','爵士':'慵懒又有品，上班摸鱼必备。','说唱':'嘴皮子利索，flow 很稳。'};
@@ -4847,7 +4848,8 @@ function renderMine(){
  const hero=document.getElementById('mine-hero');
  if(hero)hero.innerHTML='<div class="mh-av">'+userAvatarImg()+'</div><div class="mh-tx"><div class="mh-t">机智可爱田私人领地</div><div class="mh-s">数据都在本机，安心</div></div>';
  const stats=document.getElementById('mine-stats');
- if(stats)stats.innerHTML=mineStat('记账',expCount,'笔')+mineStat('习惯打卡',habitDays,'天')+mineStat('探店',expCount2,'次')+mineStat('书影音',starCount,'星球')+mineStat('纪念日',getAnniv().length,'个');
+ const taskCount=(getTasks()||[]).length;
+ if(stats)stats.innerHTML=mineStat('记账',expCount,'笔')+mineStat('习惯打卡',habitDays,'天')+mineStat('书影音',starCount,'部')+mineStat('任务',taskCount,'件');
  const ws=starCount;
  const ms=document.getElementById('mine-media-sub');if(ms)ms.textContent=ws>0?('已收藏 '+ws+' 部作品'+(ws<5?' / 小新在等你推荐':'')):'小新在等你推荐';
  const sp=state.records.filter(function(r){return (r.tags||[]).indexOf('精神食粮')>=0&&r.type==='expense';}).reduce(function(s,r){return s+(r.amount||0);},0);
@@ -4862,6 +4864,8 @@ function renderMine(){
  const visited=state.explores.filter(function(e){return e.status==='visited';}).length;
  const thunder=state.explores.filter(function(e){return e.status==='visited'&&(e.rating&&e.rating<=2);}).length;
  const es=document.getElementById('mine-exp-sub');if(es)es.textContent='探了 '+visited+' 家店'+(thunder>0?(' / 踩雷 '+thunder+' 家'):'');
+ const taskPending=(getTasks()||[]).filter(function(t){return !t.done;}).length;
+ const tsk=document.getElementById('mine-task-sub'); if(tsk)tsk.textContent= taskPending>0? ('还有 '+taskPending+' 件待办') : '全部搞定 👍';
  refreshMineAnniv();
  renderMineSpendSummary();
 }
@@ -4881,7 +4885,19 @@ function mineStat(label,val,unit){
 }
 function openExploreSub(){renderExplore();openSubpage('subpage-explore');}
 function openSpiritReport(){renderSpiritReport();openSubpage('subpage-spirit');}
-function renderSpiritReport(){
+function openDataBoard(){ openSubpage('subpage-databoard'); dataBoardTab('week'); }
+function dataBoardTab(k){
+ try{
+  var tabs=document.querySelectorAll('#subpage-databoard .db-tab');
+  for(var i=0;i<tabs.length;i++){ tabs[i].classList.toggle('active', tabs[i].getAttribute('data-k')===k); }
+  var body=document.getElementById('databoard-body'); if(!body)return;
+  if(k==='week'){ generateWeeklyReport(body); }
+  else if(k==='month'){ generateMonthlyReport(body); }
+  else if(k==='media'){ renderMediaReport(body); }
+  else if(k==='spirit'){ renderSpiritReport(body); }
+ }catch(e){ console.warn('[databoard]',e); }
+}
+function renderSpiritReport(host){
  const recs=state.records.filter(function(r){return (r.tags||[]).indexOf('精神食粮')>=0&&r.type==='expense';});
  const total=recs.reduce(function(s,r){return s+(r.amount||0);},0);
  const byMonth={};
@@ -4899,7 +4915,7 @@ function renderSpiritReport(){
   }).join('')+'</div>';
  }
  html+='<div class="rep-sec"><h4><span class="em">🧾</span>明细</h4>'+(list||'<div class="empty-state"><p style="font-size:12px">还没有精神食粮消费，买书买碟时点「记花销」就会计入</p></div>')+'</div>';
- const body=document.getElementById('spirit-body');if(body)body.innerHTML=html;
+ const body=document.getElementById('spirit-body'); if(host) host.innerHTML=html; else if(body) body.innerHTML=html;
 }
 function linkExpMedia(id){
  const e=state.explores.find(function(x){return x.id===id;});
@@ -4934,6 +4950,13 @@ function downloadCSV(name,rows){
  const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;a.click();URL.revokeObjectURL(url);
  toast('已导出 CSV');
 }
+function doExportByFmt(){
+ var fmt=document.getElementById('export-fmt')?.value||'json';
+ if(fmt==='bills')exportCSV();
+ else if(fmt==='media')exportMediaCSV();
+ else exportData();
+}
+function importBackup(){ var f=document.getElementById('import-file'); if(f)f.click(); else toast('导入功能不可用'); }
 function openAbout(){
  const m=document.getElementById('modal');
  m.innerHTML='<div class="modal-h"><h2>关于</h2><div class="modal-close" onclick="dismissModal()"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></div></div>'+
@@ -5056,15 +5079,18 @@ function clearBackups(){
 // ============ Settings ============
 function openSettings(){
  const m=document.getElementById('modal');
- m.innerHTML='<div class="modal-h"><h2>设置</h2><div class="modal-close" onclick="dismissModal()"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></div></div>'+
- '<div class="sec-title"><div class="left"><div class="dot" style="background:var(--media)"></div>文艺目标</div></div><div class="form-group"><label class="form-label">每月想看完几部（书/影/音）</label><input type="number" id="set-mediagoal" value="'+(state.settings.mediaGoal||4)+'" inputmode="numeric"><div class="small mt8">首页左边那个圈就是它的进度</div></div>'+
- '<div class="sec-title"><div class="left"><div class="dot" style="background:var(--expense)"></div>财务</div></div><div class="form-group"><label class="form-label">每周冲动消费限额（¥）</label><input type="number" id="set-noness" value="'+(state.settings.nonEssLimit||500)+'" inputmode="numeric"><div class="small mt8">超额后首页会出现美冴的拳印裂痕特效</div></div>'+
- '<div class="sec-title"><div class="left"><div class="dot" style="background:var(--yellow)"></div>零花钱积分</div></div><div class="card-tight card mb8"><div class="bold" style="font-size:13px">当前积分：'+state.points+' 点</div><div class="small mt8">连续无冲动：'+state.noImpulseStreak+' 天（每7天+200）<br>全习惯打卡：+50/天<br>胡闹消费：-50/笔<br>广志的泪：-100/笔<br>夜间冲动：额外-100</div></div>'+
- '<div class="sec-title"><div class="left"><div class="dot" style="background:var(--primary)"></div>显示</div></div><div class="card-tight card mb8" style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:13px">隐私模式</span><button class="btn-ghost" onclick="togglePrivacy()" style="font-size:12px;padding:6px 14px;min-height:34px">'+(state.settings.privacyOn?'已开启':'已关闭')+'</button></div><div class="small mt8" style="padding:0 4px">隐私模式：模糊金额数字，点击可查看</div>'+
-  '<button class="btn-primary" onclick="saveSettings()">保存设置</button>'+
- '<div class="sec-title mt12"><div class="left" style="color:var(--hab)">报告</div></div><button class="btn-ghost" onclick="generateWeeklyReport()" style="width:100%;margin-bottom:8px">春日部新闻报（周报）</button><button class="btn-ghost" onclick="generateMonthlyReport()" style="width:100%;margin-bottom:8px">机智可爱田财政赤字报告（月报）</button>'+
- '<div class="sec-title"><div class="left" style="color:var(--expense)">数据管理</div></div><button class="btn-ghost" onclick="clearDemoData()" style="width:100%;margin-bottom:8px">清空示例数据</button><button class="btn-ghost" onclick="clearAllData()" style="width:100%;color:var(--expense);border-color:var(--expense)">清空所有数据</button><div id="backup-history"></div>'+
- '<div class="sec-title"><div class="left" style="color:#3B82C4">数据同步（连 Supabase 服务器 · 自动同步）</div><span style="font-size:10px;background:#E60012;color:#fff;padding:2px 8px;border-radius:6px;font-weight:700">v42</span></div>'
+ m.innerHTML='<div class="modal-h"><h2>野原家设定</h2><div class="modal-close" onclick="dismissModal()"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></div></div>'+
+ '<div class="sec-title"><div class="left"><div class="dot" style="background:var(--primary)"></div>通用</div></div>'+
+ '<div class="form-group"><label class="form-label">每月想看完几部（书/影/音）</label><input type="number" id="set-mediagoal" value="'+(state.settings.mediaGoal||4)+'" inputmode="numeric"><div class="small mt8">首页左边那个圈就是它的进度</div></div>'+
+ '<div class="form-group"><label class="form-label">每周冲动消费限额（¥）</label><input type="number" id="set-noness" value="'+(state.settings.nonEssLimit||500)+'" inputmode="numeric"><div class="small mt8">超额后首页会出现美冴的拳印裂痕特效</div></div>'+
+ '<div class="card-tight card mb8" style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:13px">隐私模式（模糊金额）</span><button class="btn-ghost" id="set-privacy-btn" onclick="togglePrivacy()" style="font-size:12px;padding:6px 14px;min-height:34px">'+(state.settings.privacyOn?'已开启':'已关闭')+'</button></div>'+
+ '<div class="card-tight card mb8" style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:13px">夜间模式（21:00-07:00 自动）</span><button class="btn-ghost" id="set-night-btn" onclick="toggleNightMode()" style="font-size:12px;padding:6px 14px;min-height:34px">'+(isNight()||state.settings.nightMode?'已开启':'已关闭')+'</button></div>'+
+ '<button class="btn-primary" onclick="saveSettings()">保存设置</button>'+
+ '<div class="sec-title mt12" id="settings-data-mgmt"><div class="left" style="color:var(--expense)">数据管理</div></div>'+
+ '<div class="form-group"><label class="form-label">导出备份</label><div style="display:flex;gap:8px"><select id="export-fmt" style="flex:1;min-height:44px;border:1px solid var(--border2);border-radius:10px;padding:0 10px;font-size:13px;background:var(--bg)"><option value="json">JSON 完整备份</option><option value="bills">账单 CSV</option><option value="media">书影音 CSV</option></select><button class="btn-ghost" onclick="doExportByFmt()" style="white-space:nowrap;min-height:44px">导出</button></div></div>'+
+ '<div style="display:flex;gap:8px;margin-bottom:8px"><button class="btn-ghost" onclick="importBackup()" style="flex:1">📥 导入恢复</button><button class="btn-ghost" onclick="clearAllData()" style="flex:1;color:var(--expense);border-color:var(--expense)">清空所有数据</button></div>'+
+ '<div id="backup-history"></div>'+
+ '<div class="sec-title"><div class="left" style="color:#3B82C4">数据同步</div><span style="font-size:10px;background:#E60012;color:#fff;padding:2px 8px;border-radius:6px;font-weight:700">v43</span></div>'
 +'<div class="card-tight card mb8" style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:13px">连服务器自动同步（手机电脑共享）</span><button class="btn-ghost" id="supa-on-btn" onclick="supaToggleOn()" style="font-size:12px;padding:6px 14px;min-height:34px">'+(DB.get('sync_on',false)?'已开启':'已关闭')+'</button></div>'
 +'<div class="form-group"><label class="form-label">Supabase 项目 URL</label><input type="text" id="sync-url" value="'+hEsc(DB.get('sync_url','https://zmlkhnhjqcpzhywrgtiw.supabase.co'))+'" placeholder="https://xxxx.supabase.co"></div>'
 +'<div class="form-group"><label class="form-label">anon / public key</label><input type="text" id="sync-key" value="'+hEsc(DB.get('sync_key','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InptbGtobmhqcWNwemh5d3JndGl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYxMjY2NjcsImV4cCI6MjEwMTcwMjY2N30.hZnlONauB0y20wMEF7OG5kRn2uR2PCvcVEfrAE9FoVI'))+'" placeholder="eyJhbGciOi... 或 sb_publishable_..."></div>'
@@ -5072,11 +5098,10 @@ function openSettings(){
 +'<button class="btn-primary" onclick="supaSaveCfg()" style="width:100%;margin-bottom:8px">💾 保存同步配置</button>'
 +'<button class="btn-ghost" onclick="supaTestConn()" style="width:100%;margin-bottom:8px;color:#059669;border-color:#059669">🔗 测试连接</button>'
 +'<div class="card-tight card mb8" style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:13px">每日自动同步（每天一次）</span><button class="btn-ghost" id="supa-auto-btn" onclick="supaToggleAuto()" style="font-size:12px;padding:6px 14px;min-height:34px">'+(DB.get('sync_auto',true)?'已开启':'已关闭')+'</button></div>'
-+'<div style="display:flex;gap:8px;margin-bottom:8px"><button class="btn-ghost" onclick="supaUpload()" style="flex:1;color:#E60012;border-color:#E60012">📤 上传(本机→服务器)</button><button class="btn-ghost" onclick="supaDownload()" style="flex:1;color:#0072BC;border-color:#0072BC">📥 下载(服务器→本机)</button></div>'
-+'<button class="btn-ghost" onclick="supaManual()" style="width:100%;margin-bottom:8px;color:#3B82C4;border-color:#3B82C4">立即同步一次（上传+下载）</button>'
-+'<button class="btn-ghost" onclick="openSyncLogModal()" style="width:100%;margin-bottom:8px;color:#7C3AED;border-color:#7C3AED">📋 查看同步日志</button>'
++'<button class="btn-primary" style="width:100%;margin-bottom:8px;background:#3B82C4" onclick="supaSyncOnce()">🔄 立即同步（下载→合并→上传）</button>'
++'<a onclick="openSyncLogModal()" style="display:block;text-align:center;font-size:12px;color:#7C3AED;margin-bottom:8px;cursor:pointer">📋 查看同步日志</a>'
 +'<div class="small mt8" style="padding:0 4px"><b>怎么用：</b>① Supabase 建表 wb_sync；② 填项目 URL + anon key；③ 点「生成」同步ID，各设备填<b>相同 ID</b>即共享。数据存你自己 Supabase 项目（需 VPN 才能连）。</div>'
-+'<div class="sec-title"><div class="left">关于</div></div><div class="card-tight card small"><div class="bold mb8" style="font-size:13px;color:var(--text)">机智可爱田工作台 · 小新陪你对抗冲动</div><div>用厌恶损失对抗冲动消费，每一笔花销都有代价。</div><div class="mt8">数据存在本地浏览器，关掉页面也不会丢。</div><div class="mt8">记得定期导出备份，换手机时导入就能恢复。</div><div class="mt8">多台设备连 Supabase 服务器自动同步，在设置→数据同步里配置即可共享（需 VPN）。</div><div class="mt8 muted" style="font-size:10px">localStorage key 前缀：wb_life_</div></div>'
++'<div class="sec-title"><div class="left">关于</div></div><div class="card-tight card small"><div class="bold mb8" style="font-size:13px;color:var(--text)">机智可爱田工作台 v43</div><div>用厌恶损失对抗冲动消费，每一笔花销都有代价。</div><div class="mt8">数据存在本地浏览器，关掉页面也不会丢。</div><div class="mt8">记得定期导出备份（JSON / CSV），换手机时导入就能恢复。</div><div class="mt8">多台设备连 Supabase 自动同步，在「数据同步」里配置即可共享（需 VPN）。</div><div class="mt8 muted" style="font-size:10px">localStorage key 前缀：wb_life_</div></div>'
  openModal();
  renderBackupHistory();
 }
@@ -5188,7 +5213,15 @@ document.getElementById('rage-overlay').addEventListener('click',e=>{if(e.target
 
 // ============ Night Mode ============
 function applyNightMode(){
- document.body.classList.toggle('night-mode',isNight());
+ document.body.classList.toggle('night-mode', isNight()||!!state.settings.nightMode);
+}
+function toggleNightMode(){
+ state.settings.nightMode=!state.settings.nightMode;
+ DB.set('settings',state.settings);
+ applyNightMode();
+ var b=document.getElementById('set-night-btn');
+ if(b)b.textContent=state.settings.nightMode?'已开启':'已关闭';
+ toast('夜间模式'+(state.settings.nightMode?'已开启':'已关闭'));
 }
 
 // ============ Init ============
@@ -6461,6 +6494,15 @@ function renderWorkWeekHint(){
  el.innerHTML='<div style="background:#FFF6E0;border:2px solid var(--warn);border-radius:10px;padding:8px 10px;font-size:12px;font-weight:700;color:#8a5a00;margin:8px 0">'+txt+'</div>';
 }
 function renderTodayIfHome(){if(state.tab==='home')renderToday();}
+function renderTodoQuick(){
+ const cEl=document.getElementById('todo-count');
+ const sEl=document.getElementById('todo-quick-sub');
+ if(!cEl&&!sEl)return;
+ var pending=(getTasks()||[]).filter(function(t){return !t.done;});
+ var n=pending.length;
+ if(cEl)cEl.textContent= n>0? ('还剩 '+n+' 件') : '全部搞定';
+ if(sEl)sEl.textContent= n>0? ('今天有 '+n+' 件待办，点我去处理') : '今日待办全部完成，小新给你点赞 👍';
+}
 
 // ============ 云同步（Supabase · 白名单模式 + 激进瘦身 v31） ============
 var supaTimer=null, _supaManual=false, _syncDirty=false, _cloudState='checking', _cloudCount=0;
@@ -6904,6 +6946,7 @@ async function supaCheckStatus(){
 }
 function supaUpload(){ var su=(document.getElementById('sync-url')?.value||'').trim(); var sk=(document.getElementById('sync-key')?.value||'').trim(); var si=(document.getElementById('sync-id')?.value||'').trim(); if(su)DB.set('sync_url',su); if(sk)DB.set('sync_key',sk); if(si)DB.set('sync_id',si); var cfg=getSyncCfg(); if(!cfg.url||!cfg.key||!cfg.id){toast('先填好 Supabase 配置');return;} _supaManual=true; toast('正在上传…'); supaPush().finally(function(){_supaManual=false;}); }
 function supaDownload(){ var cfg=getSyncCfg(); if(!cfg.url||!cfg.key||!cfg.id){toast('先填好 Supabase 配置');return;} DB.set('sync_lastpull',0); _supaManual=true; toast('正在下载…'); supaPull(false).finally(function(){_supaManual=false;}); }
+function supaSyncOnce(){ supaManual(); }
 (function(){ try{ var u=DB.get('sync_url',''); if(u && /ersnurqqklabwgtq|vrlicrbadlycyaklkxkve|kcfmpmlynteuvbwaoxvd/.test(u)){ DB.set('sync_url','https://zmlkhnhjqcpzhywrgtiw.supabase.co'); DB.set('sync_key','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InptbGtobmhqcWNwemh5d3JndGl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYxMjY2NjcsImV4cCI6MjEwMTcwMjY2N30.hZnlONauB0y20wMEF7OG5kRn2uR2PCvcVEfrAE9FoVI'); toast('已自动切换到新 Supabase 项目，请点「测试连接」'); } }catch(e){} })();
 annivSeed();
 refreshMineAnniv();
