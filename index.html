@@ -1413,6 +1413,18 @@ align-items:center;justify-content:center;font-size:13px}
 .jp-back-kana{text-align:center;font-size:13px;color:#fff;background:linear-gradient(135deg,#2E7DD1,#4a98e0);border-radius:12px;padding:12px 10px;margin-bottom:12px;cursor:pointer;font-weight:600;box-shadow:0 4px 12px rgba(46,125,209,.28)}
 .jp-back-kana b{font-size:15px}
 </style>
+<style>
+.buddy-bar{margin:10px 14px 0}
+.buddy-card{background:linear-gradient(135deg,#FFF6FB,#FDEAF4);border:1px solid #F3D6E8;border-radius:16px;padding:12px 14px;box-shadow:0 4px 14px rgba(196,120,168,.12)}
+.buddy-head{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.buddy-shin{font-weight:800;font-size:14px;color:#C4638F;white-space:nowrap}
+.buddy-mood{font-size:12px;color:#8A5A76;font-weight:600;flex:1;min-width:140px}
+.buddy-lead{margin-top:8px;font-size:12px;font-weight:700;color:#2E7DD1;text-align:center}
+.buddy-commit{margin-top:8px;font-size:12px;font-weight:600;color:#5A4A55;background:#fff;border:1px dashed #E7B9D4;border-radius:10px;padding:6px 8px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.buddy-commit.done{color:#2E7D32;border-color:#BFE3C0;background:#F1FBF2}
+.btn-mini{padding:5px 12px;border-radius:10px;border:1px solid #C4638F;background:#C4638F;color:#fff;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
+.btn-mini:active{transform:translateY(1px)}
+</style>
 </head>
 <body>
 
@@ -1472,6 +1484,7 @@ align-items:center;justify-content:center;font-size:13px}
 <h3>📚 今日日语 <span id="jp-home-streak" style="float:right;font-size:11px;font-weight:600;color:#2E7DD1"></span></h3>
 <div id="jp-home-prog" style="font-size:11px;color:#2E7DD1;margin:2px 0 4px;font-weight:600"></div>
 <div id="jp-home-today" style="font-size:14px;font-weight:700"></div>
+<div id="jp-home-shin" style="font-size:12px;color:#7A5CC0;margin-top:4px;font-weight:600"></div>
 </div>
 <!-- 待办事项快捷区 -->
 <div class="today-card todo-quick" id="todo-quick" onclick="switchTab('work')" style="cursor:pointer;background:linear-gradient(135deg,#FFF3E0,#FFE0B2);color:#5D4037">
@@ -1596,6 +1609,7 @@ align-items:center;justify-content:center;font-size:13px}
 <h2>📚 小新的日语课</h2>
 <div style="width:38px"></div>
 </div>
+<div id="buddy-bar" class="buddy-bar"></div>
 <div class="subpage-body" id="jp-body" style="padding-bottom:calc(20px + var(--safe))"></div>
 </div>
 
@@ -2279,6 +2293,7 @@ let state={
  tasks:DB.get('tasks',[]),
  japanese:DB.get('japanese',null),
  certificates:DB.get('certificates',[]),
+ studyBuddy:DB.get('studyBuddy',null),
  contactTags:DB.get('contactTags',[]),
  workFilter:DB.get('workFilter','all'),
 };
@@ -2286,6 +2301,7 @@ let state={
 if(!Array.isArray(state.accounts)||state.accounts.length===0){state.accounts=DEFAULT_ACCTS;DB.set('accounts',state.accounts)}
 if(!state.habits){state.habits=DEFAULT_HABITS;DB.set('habits',state.habits)}
 state.japanese=migrateJapanese(state.japanese);DB.set('japanese',state.japanese);
+ensureStudyBuddy();
 
 // ============ Data Migration ============
 function migrateData(){
@@ -4215,8 +4231,15 @@ function checkAwards(){
   const ts=todayStr();
   const allDone=state.habits.length>0&&state.habits.every(function(h){const l=state.habitLogs[ts]?.[h.id];return l&&l.val>=(h.minTarget||h.target);});
   if(allDone)pushShould('today_all','🌞','今日全勤宝宝','今天所有习惯都打卡了！');
+  // 学习搭子（小新）专属奖状
+  const sb=state.studyBuddy||{}; const jpN=state.japanese||{};
+  if((sb.interactions||[]).some(function(i){return i.type==='study';})) pushShould('buddy_first','🌟','初次相伴','第一次和小新一起完成了学习！');
+  if((jpN.learnedDays||0)>=7) pushShould('buddy_study7','💖','温柔坚持','累计学习满 7 天，小新一直陪着你！');
+  if((sb.commitmentStreak||0)>=7) pushShould('buddy_commit7','🤝','初次承诺','连续完成承诺满 7 天，说到做到！');
+  if((jpN.learnedDays||0)>=14) pushShould('buddy_study14','💪','自律王者','累计学习满 14 天，超棒的！');
+  if((sb.shinProgress||0)>=46) pushShould('buddy_shin_full','🏆','小新认输','小新学会了全部 46 个假名，他认输啦！');
   // 累计/里程碑类成就：曾经达成即永久保留（保留已有 + 补新增），不随数据回退而消失
-  const PERM={habit_7:1,habit_30:1,habit_100:1,task_10:1,task_30:1,task_100:1,pts_2000:1,pts_5000:1};
+  const PERM={habit_7:1,habit_30:1,habit_100:1,task_10:1,task_30:1,task_100:1,pts_2000:1,pts_5000:1,buddy_first:1,buddy_study7:1,buddy_commit7:1,buddy_study14:1,buddy_shin_full:1};
   const shouldMap={}; should.forEach(function(s){shouldMap[s.key]=s;});
   const prev={}; state.certificates.forEach(function(c){prev[c.key]=c;});
   const next=[];
@@ -5270,7 +5293,7 @@ function openSettings(){
  '<div class="form-group"><label class="form-label">导出备份</label><div style="display:flex;gap:8px"><select id="export-fmt" style="flex:1;min-height:44px;border:1px solid var(--border2);border-radius:10px;padding:0 10px;font-size:13px;background:var(--bg)"><option value="json">JSON 完整备份</option><option value="bills">账单 CSV</option><option value="media">书影音 CSV</option></select><button class="btn-ghost" onclick="doExportByFmt()" style="white-space:nowrap;min-height:44px">导出</button></div></div>'+
  '<div style="display:flex;gap:8px;margin-bottom:8px"><button class="btn-ghost" onclick="importBackup()" style="flex:1">📥 导入恢复</button><button class="btn-ghost" onclick="clearAllData()" style="flex:1;color:var(--expense);border-color:var(--expense)">清空所有数据</button></div>'+
  '<div id="backup-history"></div>'+
- '<div class="sec-title"><div class="left" style="color:#3B82C4">数据同步</div><span style="font-size:10px;background:#E60012;color:#fff;padding:2px 8px;border-radius:6px;font-weight:700">v47</span></div>'
+ '<div class="sec-title"><div class="left" style="color:#3B82C4">数据同步</div><span style="font-size:10px;background:#E60012;color:#fff;padding:2px 8px;border-radius:6px;font-weight:700">v48</span></div>'
 +'<div class="card-tight card mb8" style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:13px">连服务器自动同步（手机电脑共享）</span><button class="btn-ghost" id="supa-on-btn" onclick="supaToggleOn()" style="font-size:12px;padding:6px 14px;min-height:34px">'+(DB.get('sync_on',false)?'已开启':'已关闭')+'</button></div>'
 +'<div class="form-group"><label class="form-label">Supabase 项目 URL</label><input type="text" id="sync-url" value="'+hEsc(DB.get('sync_url','https://zmlkhnhjqcpzhywrgtiw.supabase.co'))+'" placeholder="https://xxxx.supabase.co"></div>'
 +'<div class="form-group"><label class="form-label">anon / public key</label><input type="text" id="sync-key" value="'+hEsc(DB.get('sync_key','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InptbGtobmhqcWNwemh5d3JndGl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYxMjY2NjcsImV4cCI6MjEwMTcwMjY2N30.hZnlONauB0y20wMEF7OG5kRn2uR2PCvcVEfrAE9FoVI'))+'" placeholder="eyJhbGciOi... 或 sb_publishable_..."></div>'
@@ -5465,9 +5488,146 @@ function renderJpHomeCard(){
   const st=document.getElementById('jp-home-streak'); if(st) st.textContent='🔥 '+(jp.streak||0)+' 天';
   const prog=document.getElementById('jp-home-prog'); if(prog) prog.innerHTML='五十音 '+km+'/'+jpKanaAll().length+' · 单词 '+wm+'/'+JP_WORDS.length+' · 句子 '+sm+'/'+JP_SENTENCES.length;
   const ct=document.getElementById('jp-home-today'); if(ct) ct.textContent=content;
+  const shin=document.getElementById('jp-home-shin');
+  if(shin){ var m=getShinMood(); shin.innerHTML='🤝 小新说：'+hEsc(m.message); }
  }catch(e){}
 }
-function openJapanese(){ try{ renderJapanese(); openSubpage('subpage-japanese'); }catch(e){} }
+// ============ 小新学习搭子（温柔陪伴 · 不催 / 不比 / 不失望 / 永远在） ============
+function defaultStudyBuddy(){ return { shinProgress:0, shinLastUpdate:'', todayCommitment:'', commitmentDate:'', commitmentDone:false, commitmentStreak:0, mood:'idle', moodMessage:'今天要一起学吗？', lastStudyDate:'', missedDays:0, interactions:[] }; }
+function ensureStudyBuddy(){
+  if(!state.studyBuddy || typeof state.studyBuddy!=='object' || Array.isArray(state.studyBuddy)){ state.studyBuddy=defaultStudyBuddy(); DB.set('studyBuddy',state.studyBuddy); }
+  else { var d=defaultStudyBuddy(); for(var k in d){ if(!(k in state.studyBuddy)) state.studyBuddy[k]=d[k]; } if(!Array.isArray(state.studyBuddy.interactions)) state.studyBuddy.interactions=[]; }
+}
+function getStudyBuddyState(){ return state.studyBuddy; }
+function saveStudyBuddyState(s){ state.studyBuddy=s; if(typeof s==='object') DB.set('studyBuddy',s); }
+function getDaysSince(ds){ if(!ds) return 9999; var a=new Date(ds+'T00:00:00'); var b=new Date(todayStr()+'T00:00:00'); var diff=Math.floor((b-a)/86400000); return diff<0?0:diff; }
+function getShinMood(){
+  var s=getStudyBuddyState();
+  var daysSinceStudy=getDaysSince(s.lastStudyDate);
+  var km=(state.japanese&&state.japanese.kana&&state.japanese.kana.mastered)?state.japanese.kana.mastered.length:0;
+  if(s.lastStudyDate===todayStr()){
+    if(km>=10) return {mood:'proud', message:'你太厉害了！我已经快追不上你了，但我会加油的！'};
+    return {mood:'cheering', message:'今天也一起加油吧！你比我学得快多了～'};
+  }
+  if(daysSinceStudy===1) return {mood:'waiting', message:'昨天没来也没关系，我还在练习「あ」呢。等你来～'};
+  if(daysSinceStudy<=3) return {mood:'waiting', message:'好几天没见了…我学会了一个新假名哦！你呢？'};
+  if(daysSinceStudy<=7) return {mood:'waiting', message:'我有点想你了…不过不着急，你忙完再来，我等你。'};
+  return {mood:'idle', message:'我就知道你一定会回来的。今天要学什么？我陪你。'};
+}
+function shinMoodEmoji(mood){ return mood==='proud'?'🌟':mood==='cheering'?'💃':mood==='waiting'?'🧸':'😊'; }
+function updateShinProgress(){
+  var s=getStudyBuddyState();
+  var km=(state.japanese&&state.japanese.kana&&state.japanese.kana.mastered)?state.japanese.kana.mastered.length:0;
+  var targetShin=Math.floor(km*0.7);
+  var daysSinceLastStudy=getDaysSince(s.lastStudyDate);
+  if(daysSinceLastStudy<=3){ s.shinProgress=Math.min(targetShin,46); }
+  s.shinLastUpdate=todayStr();
+  saveStudyBuddyState(s);
+  if(s.shinProgress>=46 && !s._shinFullCelebrated){ s._shinFullCelebrated=true; saveStudyBuddyState(s); try{ setTimeout(function(){ shinFullPop(); }, 300); }catch(e){} }
+}
+function recordBuddyStudy(){
+  var s=getStudyBuddyState();
+  var gap=getDaysSince(s.lastStudyDate);
+  s.missedDays=(s.lastStudyDate && gap>0)?gap:0;
+  s.lastStudyDate=todayStr();
+  s.interactions.push({date:todayStr(), type:'study'});
+  if(s.interactions.length>300) s.interactions=s.interactions.slice(-300);
+  var m=getShinMood(); s.mood=m.mood; s.moodMessage=m.message;
+  saveStudyBuddyState(s);
+  try{ checkAwards(); }catch(e){}
+}
+function commitmentLabel(v){ return v==='kana5'?'学 5 个假名':v==='word10'?'学 10 个单词':v==='sent1'?'读 1 句日语':v==='free10'?'自由练习 10 分钟':v==='rest'?'今天休息一下':'学习'; }
+function maybeOpenCommitment(){
+  var s=getStudyBuddyState();
+  if(s._commitShownDate===todayStr()) return;
+  if(s.commitmentDate===todayStr()) return;
+  s._commitShownDate=todayStr(); saveStudyBuddyState(s);
+  openCommitmentBox();
+}
+function openCommitmentBox(){
+  var s=getStudyBuddyState();
+  var greet='小新在旁边等你，不着急，选一个你喜欢的：';
+  if(s.commitmentDate && s.commitmentDate!==todayStr() && !s.commitmentDone){ greet='昨天没完成也没关系，今天继续就好，我一直在这里。选一个你喜欢的：'; }
+  var opts=[['kana5','学 5 个假名（轻轻松松）'],['word10','学 10 个单词'],['sent1','读 1 句日语'],['free10','自由练习 10 分钟'],['rest','今天想休息一下（小新说：没问题！）']];
+  window._commitSel = (s.commitmentDate===todayStr())? s.todayCommitment : '';
+  var html='<p style="margin:2px 0 10px">'+greet+'</p><div class="cat-grid" id="commit-opts" style="grid-template-columns:1fr">'+opts.map(function(o){return '<div class="cat-btn" data-v="'+o[0]+'" onclick="window._commitSel=\''+o[0]+'\';document.querySelectorAll(\'#commit-opts .cat-btn\').forEach(function(x){x.classList.remove(\'active\')});this.classList.add(\'active\')">'+o[1]+'</div>';}).join('')+'</div><div class="cb-row" style="margin-top:12px"><button class="btn-ghost" onclick="closeConfirm()">晚点再说</button><button class="btn-primary" onclick="confirmCommitment()">好，我试试看</button></div>';
+  confirmBox('📝 今天要学什么？', html, '');
+}
+function confirmCommitment(){
+  var s=getStudyBuddyState();
+  var v=window._commitSel||'';
+  if(!v){ toast('选一个你喜欢的吧～'); return; }
+  s.todayCommitment=v; s.commitmentDate=todayStr();
+  if(v==='rest'){
+    s.commitmentDone=true; s._lastCommitDate=todayStr();
+    s.mood='waiting'; s.moodMessage='好呀，休息也是学习的一部分。我等你明天来～';
+    saveStudyBuddyState(s); closeConfirm();
+    confirmBox('☕ 休息一下也好','好呀，休息也是学习的一部分。我等你明天来～','<div class="cb-row"><button class="btn-primary" onclick="closeConfirm()">好呀～</button></div>');
+    return;
+  }
+  s.commitmentDone=false; saveStudyBuddyState(s); closeConfirm();
+  toast('好呀，'+commitmentLabel(v)+'，慢慢来，我陪你～');
+}
+function markCommitmentDone(){
+  var s=getStudyBuddyState();
+  if(s.commitmentDate!==todayStr()){ toast('今天还没定小目标哦～'); return; }
+  if(s.commitmentDone){ toast('今天已经标记完成啦，你真棒！'); return; }
+  s.commitmentDone=true;
+  var last=s._lastCommitDate;
+  if(last===yesterdayStr()) s.commitmentStreak=(s.commitmentStreak||0)+1;
+  else if(last===todayStr()){ /* 已算过 */ }
+  else s.commitmentStreak=1;
+  s._lastCommitDate=todayStr();
+  s.interactions.push({date:todayStr(), type:'commit'});
+  s.mood='cheering'; s.moodMessage='你做到了！我说过你可以的～';
+  saveStudyBuddyState(s);
+  renderBuddyBar();
+  try{ checkAwards(); renderCertWall(); }catch(e){}
+  confirmBox('🎉 你做到了！','我说过你可以的～ 连续完成承诺 '+s.commitmentStreak+' 天啦','<div class="cb-row"><button class="btn-primary" onclick="closeConfirm()">好呀～</button></div>');
+}
+function shinStudyPop(){
+  var s=getStudyBuddyState();
+  var km=(state.japanese&&state.japanese.kana&&state.japanese.kana.mastered)?state.japanese.kana.mastered.length:0;
+  var lead=km - s.shinProgress;
+  confirmBox('🎉 你做到了！','比小新快了 '+lead+' 个假名！<br>他还在努力追上你呢～','<div class="cb-row"><button class="btn-primary" onclick="closeConfirm()">好呀～</button></div>');
+}
+function shinWelcomePop(){
+  confirmBox('👋 我就知道你一定会回来','好几天没见，今天想学什么？<br>我陪你～','<div class="cb-row"><button class="btn-primary" onclick="closeConfirm()">好呀，一起学</button></div>');
+}
+function shinFullPop(){
+  confirmBox('🏆 小新认输啦！','小新终于学会了全部 46 个假名！<br>他说：「你教得真好，我认输～不过我会一直陪你学下去的。」','<div class="cb-row"><button class="btn-primary" onclick="closeConfirm()">哈哈，一起继续！</button></div>');
+}
+function onOpenStudyBuddy(){
+  var s=getStudyBuddyState();
+  var gap=getDaysSince(s.lastStudyDate);
+  if(s.lastStudyDate && gap>=4 && s._welcomeDate!==todayStr()){ s._welcomeDate=todayStr(); saveStudyBuddyState(s); shinWelcomePop(); return; }
+  maybeOpenCommitment();
+}
+function renderBuddyBar(){
+  var el=document.getElementById('buddy-bar'); if(!el)return;
+  var s=getStudyBuddyState();
+  var km=(state.japanese&&state.japanese.kana&&state.japanese.kana.mastered)?state.japanese.kana.mastered.length:0;
+  var total=jpKanaAll().length;
+  var userPct=Math.round(km/total*100), shinPct=Math.round((s.shinProgress||0)/total*100);
+  var lead=userPct-shinPct;
+  var m=getShinMood();
+  var commitHtml='';
+  if(s.commitmentDate===todayStr()){
+    if(s.commitmentDone) commitHtml='<div class="buddy-commit done">✅ 今日承诺已完成：'+hEsc(commitmentLabel(s.todayCommitment))+'（连续 '+s.commitmentStreak+' 天）</div>';
+    else commitHtml='<div class="buddy-commit">📝 今日承诺：'+hEsc(commitmentLabel(s.todayCommitment))+' <button class="btn-mini" onclick="markCommitmentDone()">今日已完成</button></div>';
+  }
+  function bar(name,pct,val,color){
+    return '<div class="jp-prog-row"><div class="jp-prog-label">'+name+' <b>'+val+'/'+total+'</b></div><div class="jp-bar"><div class="jp-bar-fill" style="width:'+pct+'%;background:'+color+'"></div></div><div class="jp-prog-pct">'+pct+'%</div></div>';
+  }
+  el.innerHTML='<div class="buddy-card">'+
+    '<div class="buddy-head"><span class="buddy-shin">'+shinMoodEmoji(m.mood)+' 小新</span><span class="buddy-mood">'+hEsc(m.message)+'</span></div>'+
+    bar('你',userPct,km,'#2E7DD1')+
+    bar('小新',shinPct,(s.shinProgress||0),'#E8703A')+
+    '<div class="buddy-lead">你领先小新 '+lead+'%，他正在拼命追赶你！</div>'+
+    commitHtml+
+  '</div>';
+}
+function openJapanese(){ try{ renderJapanese(); openSubpage('subpage-japanese'); renderBuddyBar(); onOpenStudyBuddy(); }catch(e){} }
 function jpSegBar(label, done, total, color){ const pct=total>0?Math.round(done/total*100):0; return '<div class="jp-prog-row"><div class="jp-prog-label">'+label+' <b>'+done+'/'+total+'</b></div><div class="jp-bar"><div class="jp-bar-fill" style="width:'+pct+'%;background:'+color+'"></div></div><div class="jp-prog-pct">'+pct+'%</div></div>'; }
 function renderJapanese(){
  try{
@@ -5871,6 +6031,8 @@ function markJpItem(kind, label){
    linkJapaneseHabit(label);
   }
   renderJapanese(); renderMedia(); renderHabits(); renderToday(); renderJpHomeCard();
+  try{ updateShinProgress(); recordBuddyStudy(); renderBuddyBar(); }catch(e){}
+  if(firstOfDay){ try{ shinStudyPop(); }catch(e){} }
   toast(firstOfDay?('已学会 ✓ 连续 '+(jp.streak||0)+' 天'):'已记录 ✓');
  }catch(e){ console.warn('[jp mark]',e); }
 }
@@ -6821,6 +6983,7 @@ var SYNC_WHITELIST={
   lastNoImpulseDate:{cap:0}, // 上次不冲动日期
   lastHabitPointsDate:{cap:0},// 上次习惯积分日期
   shinAwayUntil:{cap:0},     // 小新离开截止
+  studyBuddy:{cap:0},        // 学习搭子（小新）状态
   waterTimes:{cap:0},        // 喝水记录
   waterRemindOn:{cap:0},     // 喝水提醒开关
   tab:{cap:0},               // 当前页面
