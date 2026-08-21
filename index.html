@@ -308,6 +308,9 @@ color:var(--text3);transition:.15s;padding:0}
 
 /* Numeric habit */
 .num-habit{display:flex;align-items:center;gap:12px;justify-content:center}
+.habit-done-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:92px;padding:9px 16px;border:2px solid var(--ink);border-radius:10px;background:var(--surface2);color:var(--text2);font-weight:700;font-size:14px;cursor:pointer}
+.habit-done-btn.on{background:#2E9E4F;color:#fff;border-color:#2E9E4F}
+.rec-shop-sel{width:100%;padding:10px 12px;border:1px solid var(--border2);border-radius:8px;font-size:14px;background:var(--surface);color:var(--text)}
 .num-btn{width:40px;height:40px;border-radius:50%;background:var(--surface);
 border:2.5px solid var(--ink);display:flex;align-items:center;justify-content:center;
 font-size:20px;font-weight:800;color:var(--primary);box-shadow:1.5px 1.5px 0 var(--ink)}
@@ -1964,7 +1967,7 @@ const DEFAULT_ACCTS=[
 
 const DEFAULT_HABITS=[
  {id:'h1',name:'早起',icon:'sun',color:'#E8A838',target:1,unit:'次',freq:'daily',motto:'新的一天从早起开始'},
- {id:'h2',name:'喝水',icon:'drop',color:'#6B8CAE',target:2000,unit:'ml',freq:'daily',motto:'每天喝够水',step:250,minTarget:500},
+ {id:'h2',name:'喝水',icon:'drop',color:'#6B8CAE',target:2000,unit:'ml',freq:'daily',motto:'每天喝够水',step:250,minTarget:500,mode:'toggle'},
  {id:'h3',name:'阅读',icon:'book',color:'#6B8E7F',target:1,unit:'次',freq:'daily',motto:'每天进步一点点',minTarget:1},
  {id:'h4',name:'运动',icon:'run',color:'#D17B5D',target:30,unit:'分钟',freq:'daily',motto:'动起来才有力气',minTarget:5}
 ];
@@ -2324,15 +2327,17 @@ normalizeState();
 // 喝水习惯升级：杯 → 毫升（一次性迁移，兼容已有数据）
 (function upgradeWaterHabit(){
  const wh=state.habits.find(h=>h.name==='喝水');
- if(wh&&wh.unit==='杯'&&!wh.step){
-  wh.target=2000;wh.unit='ml';wh.step=250;wh.minTarget=500;wh.motto='每天喝够水';
-  // 历史打卡：1杯≈250ml
-  Object.keys(state.habitLogs||{}).forEach(ds=>{
-   const l=state.habitLogs[ds]?.[wh.id];
-   if(l&&l.val>0&&l.val<=50){l.val=Math.min(10000,l.val*250)}
-  });
+ if(wh){
+  if(wh.unit==='杯'&&!wh.step){
+   wh.target=2000;wh.unit='ml';wh.step=250;wh.minTarget=500;wh.motto='每天喝够水';
+   Object.keys(state.habitLogs||{}).forEach(ds=>{
+    const l=state.habitLogs[ds]?.[wh.id];
+    if(l&&l.val>0&&l.val<=50){l.val=Math.min(10000,l.val*250)}
+   });
+   DB.set('habitLogs',state.habitLogs||{});
+  }
+  if(wh.mode!=='quantitative')wh.mode='toggle';
   DB.set('habits',state.habits);
-  DB.set('habitLogs',state.habitLogs||{});
  }
 })();
 
@@ -3043,8 +3048,8 @@ function checkInFirstHabit(){
  const undone=state.habits.filter(h=>{const log=state.habitLogs[ts]?.[h.id];return !log||log.val<(h.minTarget||h.target);});
  if(undone.length===0){toast('所有习惯都完成啦，小新跳屁股舞！');return}
  const h=undone[0];
- if(h.target<=1){
-  toggleHabit(h.id);
+ if(h.target<=1||h.mode==='toggle'){
+  if(h.mode==='toggle')toggleHabitDone(h.id); else toggleHabit(h.id);
   showDynIsland('<path d="M20 6L9 17l-5-5"/>','打卡成功：'+h.name);
  }else{
   openHabits();
@@ -3397,9 +3402,10 @@ function renderAccounting(){
    const catIcon=CAT_ICONS[r.cat]||'📝';
    const isImpulse=(r.tags||[]).includes('胡闹')||(r.tags||[]).includes('广志的泪');
    const tagHtml=(r.tags||[]).map(t=>{const tg=TAGS.find(x=>x.k===t);return tg?'<span class="rec-tag '+tg.cls+'">'+t+'</span>':''}).join('');
+   const shopTag=(r.shopItemId&&r.shopName)?'<span class="rec-tag" style="background:#E8F5E9;color:#2E7D32">🛒 已关联：'+hEsc(r.shopName)+'</span>':'';
    const sign=r.type==='income'?'+':'-';
    const cls=r.type==='income'?'inc':'exp';
-   html+='<div class="rec-item'+(isImpulse?' impulse-row':'')+'" onclick="openRecordAction(\''+r.id+'\')"><div class="rec-cat" style="background:var(--surface2)">'+catIcon+'</div><div class="rec-mid"><div class="rt">'+hEsc(r.sub||r.cat)+(r.note?' · '+hEsc(r.note):'')+'</div><div class="rs">'+hEsc(r.cat)+' · '+hEsc((state.accounts.find(a=>a.id===r.acct)||{}).name||'')+(tagHtml?' · ':'')+tagHtml+'</div></div><div class="rec-amt '+cls+'">'+sign+fmtMoney(r.amount)+'</div><div class="rec-del" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/></svg></div></div>';
+   html+='<div class="rec-item'+(isImpulse?' impulse-row':'')+'" onclick="openRecordAction(\''+r.id+'\')"><div class="rec-cat" style="background:var(--surface2)">'+catIcon+'</div><div class="rec-mid"><div class="rt">'+hEsc(r.sub||r.cat)+(r.note?' · '+hEsc(r.note):'')+(shopTag?' '+shopTag:'')+'</div><div class="rs">'+hEsc(r.cat)+' · '+hEsc((state.accounts.find(a=>a.id===r.acct)||{}).name||'')+(tagHtml?' · ':'')+tagHtml+'</div></div><div class="rec-amt '+cls+'">'+sign+fmtMoney(r.amount)+'</div><div class="rec-del" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/></svg></div></div>';
   });
  }
  const recEl=document.getElementById('rec-list'); if(recEl)recEl.innerHTML=html;
@@ -3431,11 +3437,13 @@ function openRecordModal(prefill){
  '<div class="form-group"><label class="form-label">账户</label><div class="cat-grid" id="rec-acct">'+accts+'</div></div>'+
  '<div class="form-group" id="tag-area"><label class="form-label">冲动标签</label><div class="tag-row" id="rec-tags">'+TAGS.map(t=>'<div class="tag-chip '+(curTags.includes(t.k)?'active':'')+'" data-tag="'+t.k+'">'+t.k+'</div>').join('')+'</div><div class="small mt8">选「胡闹」或「广志的泪」会触发损失换算和扣分；「精神食粮」用来标记买书买碟买电影票，不扣分。</div></div>'+
  '<div class="form-group"><label class="form-label">备注</label><input type="text" id="rec-note" placeholder="写点什么..." value="'+curNote+'"></div>'+
+'<div class="form-group" id="rec-shop-area"></div>'+
  '<div class="form-group"><label class="form-label">日期</label><input type="date" id="rec-date" value="'+(prefill?.date||todayStr())+'"></div>'+
  '<button class="btn-primary" onclick="saveRecord()">确认记入</button><div id="rec-hook-area" class="mt12"></div>';
  openModal();
  renderCatGrid(curType,curCat,curSub);
  bindRecEvents();
+ renderRecShopSelector(prefill&&prefill.shopItemId);
  // Live loss equiv on amount change
  const amtInput=document.getElementById('rec-amt');
  amtInput.addEventListener('input',updateLossEquiv);
@@ -3483,6 +3491,7 @@ function setRecType(type){
  document.getElementById('tag-area').style.display=type==='transfer'?'none':'';
  document.getElementById('loss-equiv-area').innerHTML='';
  renderCatGrid(type,'','');
+ renderRecShopSelector();
 }
 function renderCatGrid(type,selCat,selSub){
  const cats=type==='income'?CATS_INC:type==='expense'?CATS_EXP:null;
@@ -3508,6 +3517,28 @@ function renderCatGrid(type,selCat,selSub){
   area.querySelectorAll('[data-sub]').forEach(x=>x.classList.remove('active'));
   b.classList.add('active');
  });
+}
+function renderRecShopSelector(selId){
+ var area=document.getElementById('rec-shop-area'); if(!area)return;
+ var curType=document.querySelector('.type-tab.active')?.textContent.trim();
+ if(curType!=='支出'){ area.style.display='none'; area.innerHTML=''; return; }
+ area.style.display='';
+ var items=state.shopping.filter(function(s){return s.group!=='bought';}).slice().sort(function(a,b){return (b.addedAt||0)-(a.addedAt||0);});
+ var opts='';
+ if(selId){ var cur=state.shopping.find(function(s){return s.id===selId;}); if(cur) opts+='<option value="'+cur.id+'">🛒 '+hEsc(cur.name)+' ¥'+cur.price+'（已关联）</option>'; }
+ opts+='<option value="">（不关联 / 解除关联）</option>';
+ items.forEach(function(s){ if(s.id===selId)return; opts+='<option value="'+s.id+'">'+hEsc(s.name)+' ¥'+s.price+'</option>'; });
+ area.innerHTML='<label class="form-label">🛒 关联购物清单（可选）</label><select id="rec-shop" class="rec-shop-sel">'+opts+'</select><div class="small mt8">关联后该物品自动标记为已购买；已关联的也可在此解除。</div>';
+}
+function syncRecShop(rec,selId){
+ try{
+  var oldId=rec.shopItemId||null;
+  if(oldId && oldId!==selId){ var o=state.shopping.find(function(s){return s.id===oldId;}); if(o){ o.group=o.prevGroup||'micai'; delete o.boughtDate; DB.set('shopping',state.shopping); renderShopping(); } }
+  if(selId){
+   var it=state.shopping.find(function(s){return s.id===selId;});
+   if(it){ if(it.group!=='bought'){ it.prevGroup=it.prevGroup||it.group; it.group='bought'; it.boughtDate=todayStr(); } rec.shopItemId=it.id; rec.shopName=it.name; DB.set('shopping',state.shopping); renderShopping(); }
+  }else{ rec.shopItemId=null; rec.shopName=null; }
+ }catch(e){ console.warn('[syncRecShop]',e); }
 }
 function saveRecord(){
  if(window._recSaving)return; window._recSaving=true;
@@ -3538,6 +3569,9 @@ function saveRecord(){
   state.records=state.records.map(r=>r.id===_editId?upd:r);
   const na=state.accounts.find(a=>a.id===acct);
   if(na){if(t==='expense')na.balance-=amt;else if(t==='income')na.balance+=amt;}
+  var _rec=state.records.find(function(r){return r.id===_editId;});
+  var _selId=document.getElementById('rec-shop')?.value||'';
+  if(_rec){ _rec.shopItemId=_selId||null; syncRecShop(_rec,_selId); }
   DB.set('records',state.records);DB.set('accounts',state.accounts);
   window._editRecId=null;
   closeModal();renderAccounting();renderToday();checkBackupHint();toast('已更新这笔记录');
@@ -3545,6 +3579,8 @@ function saveRecord(){
  }
  const rec={id:uid(),type:t,cat,sub,amount:amt,acct,tags,note,date,ts:Date.now()};
  try{ addRecord(rec); }catch(e){ console.warn('[addRecord]',e); }
+ var _selId=document.getElementById('rec-shop')?.value||'';
+ if(_selId){ rec.shopItemId=_selId; syncRecShop(rec,_selId); DB.set('records',state.records); renderAccounting(); }
  closeModal();
  // Pending shop item hook
  if(window._pendingShopId){
@@ -3584,7 +3620,7 @@ function saveRecord(){
   setTimeout(()=>shinPop('plead','咦？你也要被妈妈赶出家门了吗？我们可以一起睡公园长椅哦～',3500),800);
  }
  // Auto hooks
- if(t==='expense'&&cat==='购物'&&!window._pendingShopId){
+ if(t==='expense'&&cat==='购物'&&!window._pendingShopId&&!_selId){
   const shopItems=state.shopping.filter(s=>s.group!=='bought');
   if(shopItems.length>0){
    setTimeout(()=>promptLinkShopping(amt),300);
@@ -3678,6 +3714,7 @@ function promptLinkShopping(amt){
 function linkShopItem(id,amt){
  const item=state.shopping.find(s=>s.id===id);
  if(item){
+  if(item.group!=='bought')item.prevGroup=item.prevGroup||item.group;
   item.group='bought';
   item.boughtDate=todayStr();
   DB.set('shopping',state.shopping);
@@ -3704,7 +3741,7 @@ function openAccountModal(){
  const m=document.getElementById('modal');
  m.innerHTML='<div class="modal-h"><h2>账户管理</h2><div class="modal-close" onclick="dismissModal()"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></div></div>'+
  state.accounts.map((a,i)=>
-  '<div class="card-tight card mb8" style="display:flex;align-items:center;gap:12px"><div style="font-size:24px">'+(a.icon||'')+'</div><div style="flex:1"><div style="font-weight:600">'+hEsc(a.name)+'</div><div class="small" style="color:'+(a.balance<0?'var(--expense)':'var(--text3)')+'">'+fmtMoney(a.balance)+'</div></div><button class="btn-ghost" onclick="calibrateAccount('+i+')" style="font-size:11px;padding:6px 10px;min-height:34px">校准</button><button class="icon-btn" onclick="delAccount('+i+')" style="width:32px;height:32px;min-height:32px"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="var(--expense)" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/></svg></button></div>'
+  '<div class="card-tight card mb8" style="display:flex;align-items:center;gap:12px"><div style="font-size:24px">'+(a.icon||'')+'</div><div style="flex:1"><div style="font-weight:600">'+hEsc(a.name)+'</div><div class="small" style="color:'+(a.balance<0?'var(--expense)':'var(--text3)')+'">'+fmtMoney(a.balance)+'</div></div><button class="btn-ghost" onclick="reconcileAccount('+i+')" style="font-size:11px;padding:6px 10px;min-height:34px;color:#3B82C4;border-color:#3B82C4">对账</button><button class="btn-ghost" onclick="calibrateAccount('+i+')" style="font-size:11px;padding:6px 10px;min-height:34px">校准</button><button class="icon-btn" onclick="delAccount('+i+')" style="width:32px;height:32px;min-height:32px"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="var(--expense)" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/></svg></button></div>'
  ).join('')+
  '<div class="sec-title"><div class="left">添加账户</div></div><div class="form-group"><input type="text" id="new-acct-name" placeholder="账户名称（如：招行储蓄卡）"></div><div class="cat-grid" id="new-acct-icons">'+['💵','💳','📱','💬','🏦','💰'].map((ic,i)=>'<div class="cat-btn '+(i===0?'active':'')+'" data-icon="'+ic+'">'+ic+'</div>').join('')+'</div><div class="form-group mt12"><input type="number" id="new-acct-bal" placeholder="初始余额" inputmode="decimal"></div><button class="btn-primary" onclick="addAccount()">添加账户</button>';
  openModal();
@@ -3719,9 +3756,51 @@ function addAccount(){
  DB.set('accounts',state.accounts);
  closeModal();renderAccounting();toast('账户已添加');
 }
+function accountFlowSum(i){
+ var aid=state.accounts[i].id, sum=0;
+ state.records.forEach(function(r){ if(r.acct===aid){ if(r.type==='income')sum+=r.amount; else if(r.type==='expense')sum-=r.amount; } });
+ return sum;
+}
+function reconcileAccount(i){
+ var a=state.accounts[i]; if(!a)return;
+ var flow=accountFlowSum(i);
+ var diff=a.balance-flow;
+ if(Math.abs(diff)<0.005){
+  confirmBox('对账结果','✅ 账户「'+esc(a.name)+'」余额与流水一致，无需修正。','<div class="cb-row"><button class="btn-primary" onclick="closeConfirm()">好的</button></div>');
+  return;
+ }
+ var sign=diff<0?'-':'+';
+ confirmBox('对账结果','账户「'+esc(a.name)+'」流水计算余额：'+fmtMoney(flow)+'，当前账户余额：'+fmtMoney(a.balance)+'，差异：'+sign+fmtMoney(Math.abs(diff))+'。',
+  '<div class="cb-row"><button class="btn-ghost" onclick="closeConfirm()">暂不修正</button><button class="btn-primary" onclick="fixAccountBalance('+i+','+diff+')">一键修正</button></div>');
+}
+function fixAccountBalance(i,diff){
+ var a=state.accounts[i]; if(!a)return;
+ // 余额字段是权威真实值（由校准设定），校正记录只补到流水里让流水追上余额，不改写余额
+ var amt=Math.abs(diff), type=diff>0?'income':'expense';
+ var rec={id:uid(),type:type,cat:'其他',sub:'余额校正',amount:amt,acct:a.id,tags:[],note:'账户余额校正',date:todayStr(),ts:Date.now()};
+ try{
+  state.records.push(rec);
+  DB.set('records',state.records);
+  DB.set('accounts',state.accounts); // 余额保持权威值不变
+  renderAccounting(); renderToday();
+ }catch(e){ console.warn('[fixBalance]',e); }
+ closeConfirm();
+ openAccountModal();
+ toast('已生成「余额校正」记录，账户已与流水对齐 ✓');
+}
 function calibrateAccount(i){
- const a=state.accounts[i];
- if(!a)return;
+ const a=state.accounts[i]; if(!a)return;
+ var flow=accountFlowSum(i);
+ var diff=a.balance-flow;
+ if(Math.abs(diff)>=0.005){
+  confirmBox('校准前对账','账户「'+esc(a.name)+'」流水计算余额：'+fmtMoney(flow)+'，当前余额：'+fmtMoney(a.balance)+'，差异：'+(diff>=0?'+':'-')+fmtMoney(Math.abs(diff))+'。是否继续手动校准？',
+   '<div class="cb-row"><button class="btn-ghost" onclick="closeConfirm()">取消</button><button class="btn-primary" onclick="closeConfirm();openCalibrateInput('+i+')">继续校准</button></div>');
+  return;
+ }
+ openCalibrateInput(i);
+}
+function openCalibrateInput(i){
+ const a=state.accounts[i]; if(!a)return;
  const m=document.getElementById('action-sheet');
  m.innerHTML='<div class="as-title">校准「'+esc(a.name)+'」余额</div>'+
   '<div class="form-group" style="padding:14px 4px 0"><label class="form-label">当前余额</label><input type="number" id="cal-bal" value="'+a.balance+'" inputmode="decimal" style="font-size:16px;width:100%"></div>'+
@@ -3778,7 +3857,10 @@ function renderHabits(){ try{
   const isUrgent=(!habitCheckinDate)&&isEvening&&!done;
   const minDone=h.minTarget&&log.val>0&&log.val>=h.minTarget;
   let body='';
-  if(h.target>1){
+  var isToggle=(h.mode==='toggle');
+  if(isToggle){
+   body='<div class="num-habit mt8" style="justify-content:center;gap:10px"><button class="habit-done-btn '+(done?'on':'')+'" onclick="event.stopPropagation();toggleHabitDone(\''+h.id+'\')">'+(done?'☑ 已完成':'☐ 完成')+'</button></div>';
+  } else if(h.target>1){
    const stp=h.step||1;
    const qs=h.unit==='ml'?[250,350,500].filter(q=>q!==stp):[];
    body='<div class="num-habit mt8"><div class="num-btn" onclick="adjustHabit(\''+h.id+'\',-1)">−</div><div class="num-val">'+log.val+'<span style="font-size:12px;color:var(--text3)">/'+h.target+h.unit+'</span></div><div class="num-btn" onclick="adjustHabit(\''+h.id+'\',1)">+</div></div>';
@@ -3830,6 +3912,20 @@ function toggleHabit(id){
  }
  DB.set('habitLogs',state.habitLogs);
  renderHabits();renderToday();renderFlowerWall();checkFlowerMilestones();
+}
+function toggleHabitDone(id){
+ try{
+  const ts=habitCheckinDate||todayStr();
+  state.habitLogs[ts]=state.habitLogs[ts]||{};
+  const h=state.habits.find(x=>x.id===id); if(!h)return;
+  const cur=state.habitLogs[ts][id]?.val||0;
+  const th=h.target||1;
+  if(cur>=th){ delete state.habitLogs[ts][id]; }
+  else { state.habitLogs[ts][id]={val:th,note:'',t:Date.now(),dur:0}; }
+  DB.set('habitLogs',state.habitLogs);
+  renderHabits();renderToday();renderFlowerWall();checkFlowerMilestones();
+  if(cur>=th)toast('已取消今日「'+h.name+'」打卡'); else toast('「'+h.name+'」打卡完成 ✓');
+ }catch(e){ console.warn('[toggleDone]',e); }
 }
 function adjustHabit(id,delta){
  const ts=habitCheckinDate||todayStr();
@@ -3996,6 +4092,7 @@ function showDayDetail(ds){
 }
 function habitRightSlot(h,done,log,minDone){
  try{
+  if(h.mode==='toggle')return '';
   if(h.minTarget>0){
     if(done) return '<div class="habit-check done" onclick="toggleHabit(\''+h.id+'\')" title="点击取消打卡"><svg viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5"/></svg></div>';
     if(habitTimers[h.id]) return '<button class="habit-start timing" data-id="'+h.id+'" onclick="finishHabitTimer(\''+h.id+'\',true)"><span class="timer-val" id="timer-'+h.id+'">00:00</span></button>';
@@ -4181,11 +4278,12 @@ function openHabitModal(editId){
   {name:'写日记',icon:'pen',color:'#8B7AB8',target:1,unit:'次',motto:'记录生活',minTarget:0},
   {name:'冥想',icon:'meditate',color:'#A8C5B8',target:1,unit:'次',motto:'静心片刻',minTarget:0},
   {name:'学语言',icon:'lang',color:'#C49A4A',target:1,unit:'次',motto:'语言是钥匙',minTarget:0}];
- m.innerHTML='<div class="modal-h"><h2>'+(editing?'编辑习惯':'新建习惯')+'</h2><div class="modal-close" onclick="dismissModal()"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></div></div><div class="form-group"><label class="form-label">从模板选择</label><div class="cat-grid">'+presets.map((p,i)=>'<div class="cat-btn" onclick="applyPreset('+i+')" style="gap:4px"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="'+p.color+'" stroke-width="2">'+(HABIT_ICONS[p.icon]||'')+'</svg><span>'+p.name+'</span></div>').join('')+'</div></div><div class="form-group"><label class="form-label">习惯名称</label><input type="text" id="hab-name" placeholder="如：练琴" value="'+(editing?hEsc(editing.name):'')+'"></div><div class="form-group"><label class="form-label">图标</label><div class="cat-grid" id="hab-icons">'+Object.keys(HABIT_ICONS).map((k,i)=>'<div class="cat-btn '+((editing&&editing.icon===k)||(!editing&&i===0)?'active':'')+'" data-icon="'+k+'"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">'+HABIT_ICONS[k]+'</svg></div>').join('')+'</div></div><div class="form-group"><label class="form-label">颜色</label><div class="cat-grid" id="hab-colors">'+['#6B8E7F','#6B8CAE','#D17B5D','#E8A838','#8B7AB8','#C49A4A','#7BA968','#5B7C99'].map((c,i)=>'<div class="cat-btn '+((editing&&editing.color===c)||(!editing&&i===0)?'active':'')+'" data-color="'+c+'" style="background:'+c+';border-color:'+c+'"></div>').join('')+'</div></div><div class="form-group"><label class="form-label">每日目标</label><div style="display:flex;gap:8px;align-items:center"><input type="number" id="hab-target" value="'+(editing?editing.target:1)+'" min="1" style="flex:1" inputmode="numeric"><input type="text" id="hab-unit" value="'+(editing?hEsc(editing.unit):'次')+'" placeholder="单位" style="flex:1"></div></div><div class="form-group"><label class="form-label">每次 +/− 增量（如喝水建议 250）</label><input type="number" id="hab-step" value="'+(editing?(editing.step||1):1)+'" min="1" inputmode="numeric"><div class="small mt8">单位是 ml 时，打卡卡片会额外提供 +250/+350/+500 快捷按钮和自定义输入</div></div><div class="form-group"><label class="form-label">微习惯下限（完成下限即算打卡，降低启动门槛）</label><input type="number" id="hab-min" value="'+(editing?(editing.minTarget||0):0)+'" min="0" placeholder="0=不启用，如运动设1个俯卧撑" inputmode="numeric"></div><div class="form-group"><label class="form-label">激励语</label><input type="text" id="hab-motto" placeholder="给自己一句鼓励" value="'+(editing?hEsc(editing.motto):'')+'"></div><button class="btn-primary" onclick="saveHabit('+(editing?"'"+editId+"'":'')+')">'+(editing?'保存修改':'创建习惯')+'</button>';
+ m.innerHTML='<div class="modal-h"><h2>'+(editing?'编辑习惯':'新建习惯')+'</h2><div class="modal-close" onclick="dismissModal()"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></div></div><div class="form-group"><label class="form-label">从模板选择</label><div class="cat-grid">'+presets.map((p,i)=>'<div class="cat-btn" onclick="applyPreset('+i+')" style="gap:4px"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="'+p.color+'" stroke-width="2">'+(HABIT_ICONS[p.icon]||'')+'</svg><span>'+p.name+'</span></div>').join('')+'</div></div><div class="form-group"><label class="form-label">习惯名称</label><input type="text" id="hab-name" placeholder="如：练琴" value="'+(editing?hEsc(editing.name):'')+'"></div><div class="form-group"><label class="form-label">图标</label><div class="cat-grid" id="hab-icons">'+Object.keys(HABIT_ICONS).map((k,i)=>'<div class="cat-btn '+((editing&&editing.icon===k)||(!editing&&i===0)?'active':'')+'" data-icon="'+k+'"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">'+HABIT_ICONS[k]+'</svg></div>').join('')+'</div></div><div class="form-group"><label class="form-label">颜色</label><div class="cat-grid" id="hab-colors">'+['#6B8E7F','#6B8CAE','#D17B5D','#E8A838','#8B7AB8','#C49A4A','#7BA968','#5B7C99'].map((c,i)=>'<div class="cat-btn '+((editing&&editing.color===c)||(!editing&&i===0)?'active':'')+'" data-color="'+c+'" style="background:'+c+';border-color:'+c+'"></div>').join('')+'</div></div><div class="form-group"><label class="form-label">每日目标</label><div style="display:flex;gap:8px;align-items:center"><input type="number" id="hab-target" value="'+(editing?editing.target:1)+'" min="1" style="flex:1" inputmode="numeric"><input type="text" id="hab-unit" value="'+(editing?hEsc(editing.unit):'次')+'" placeholder="单位" style="flex:1"></div></div><div class="form-group"><label class="form-label">打卡模式</label><div class="cat-grid" id="hab-mode"><div class="cat-btn '+(editing&&editing.mode==='toggle'?'active':'')+'" data-mode="toggle">✅ 一键完成</div><div class="cat-btn '+(!editing||editing.mode!=='toggle'?'active':'')+'" data-mode="quantitative">📝 按量记录</div></div><div class="small mt8">「一键完成」点击即打卡达标，适合喝水这类习惯；「按量记录」保留数值输入框。</div></div><div class="form-group"><label class="form-label">每次 +/− 增量（如喝水建议 250）</label><input type="number" id="hab-step" value="'+(editing?(editing.step||1):1)+'" min="1" inputmode="numeric"><div class="small mt8">单位是 ml 时，打卡卡片会额外提供 +250/+350/+500 快捷按钮和自定义输入</div></div><div class="form-group"><label class="form-label">微习惯下限（完成下限即算打卡，降低启动门槛）</label><input type="number" id="hab-min" value="'+(editing?(editing.minTarget||0):0)+'" min="0" placeholder="0=不启用，如运动设1个俯卧撑" inputmode="numeric"></div><div class="form-group"><label class="form-label">激励语</label><input type="text" id="hab-motto" placeholder="给自己一句鼓励" value="'+(editing?hEsc(editing.motto):'')+'"></div><button class="btn-primary" onclick="saveHabit('+(editing?"'"+editId+"'":'')+')">'+(editing?'保存修改':'创建习惯')+'</button>';
  openModal();
  window._presets=presets;
  document.querySelectorAll('#hab-icons .cat-btn').forEach(b=>b.onclick=()=>{document.querySelectorAll('#hab-icons .cat-btn').forEach(x=>x.classList.remove('active'));b.classList.add('active')});
  document.querySelectorAll('#hab-colors .cat-btn').forEach(b=>b.onclick=()=>{document.querySelectorAll('#hab-colors .cat-btn').forEach(x=>x.classList.remove('active'));b.classList.add('active')});
+ document.querySelectorAll('#hab-mode .cat-btn').forEach(b=>b.onclick=()=>{document.querySelectorAll('#hab-mode .cat-btn').forEach(x=>x.classList.remove('active'));b.classList.add('active')});
 }
 function applyPreset(i){
  const p=window._presets[i];
@@ -4214,11 +4312,12 @@ function saveHabit(editId){
    h.name=name;h.icon=icon;h.color=color;h.target=target;h.unit=unit;h.motto=motto;
    h.minTarget=minTarget>0?minTarget:undefined;
    h.step=step>1?step:undefined;
+   h.mode=document.querySelector('#hab-mode .cat-btn.active')?.dataset.mode||'quantitative';
    DB.set('habits',state.habits);
    closeModal();renderHabits();renderToday();toast('习惯已更新');
   }
  }else{
-  state.habits.push({id:uid(),name,icon,color,target,unit,freq:'daily',motto,minTarget:minTarget>0?minTarget:undefined,step:step>1?step:undefined});
+  state.habits.push({id:uid(),name,icon,color,target,unit,freq:'daily',motto,minTarget:minTarget>0?minTarget:undefined,step:step>1?step:undefined,mode:document.querySelector('#hab-mode .cat-btn.active')?.dataset.mode||'quantitative'});
   DB.set('habits',state.habits);
   closeModal();renderHabits();toast('习惯已创建');
  }
@@ -5170,7 +5269,7 @@ function openSettings(){
  '<div class="form-group"><label class="form-label">导出备份</label><div style="display:flex;gap:8px"><select id="export-fmt" style="flex:1;min-height:44px;border:1px solid var(--border2);border-radius:10px;padding:0 10px;font-size:13px;background:var(--bg)"><option value="json">JSON 完整备份</option><option value="bills">账单 CSV</option><option value="media">书影音 CSV</option></select><button class="btn-ghost" onclick="doExportByFmt()" style="white-space:nowrap;min-height:44px">导出</button></div></div>'+
  '<div style="display:flex;gap:8px;margin-bottom:8px"><button class="btn-ghost" onclick="importBackup()" style="flex:1">📥 导入恢复</button><button class="btn-ghost" onclick="clearAllData()" style="flex:1;color:var(--expense);border-color:var(--expense)">清空所有数据</button></div>'+
  '<div id="backup-history"></div>'+
- '<div class="sec-title"><div class="left" style="color:#3B82C4">数据同步</div><span style="font-size:10px;background:#E60012;color:#fff;padding:2px 8px;border-radius:6px;font-weight:700">v45</span></div>'
+ '<div class="sec-title"><div class="left" style="color:#3B82C4">数据同步</div><span style="font-size:10px;background:#E60012;color:#fff;padding:2px 8px;border-radius:6px;font-weight:700">v46</span></div>'
 +'<div class="card-tight card mb8" style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:13px">连服务器自动同步（手机电脑共享）</span><button class="btn-ghost" id="supa-on-btn" onclick="supaToggleOn()" style="font-size:12px;padding:6px 14px;min-height:34px">'+(DB.get('sync_on',false)?'已开启':'已关闭')+'</button></div>'
 +'<div class="form-group"><label class="form-label">Supabase 项目 URL</label><input type="text" id="sync-url" value="'+hEsc(DB.get('sync_url','https://zmlkhnhjqcpzhywrgtiw.supabase.co'))+'" placeholder="https://xxxx.supabase.co"></div>'
 +'<div class="form-group"><label class="form-label">anon / public key</label><input type="text" id="sync-key" value="'+hEsc(DB.get('sync_key','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InptbGtobmhqcWNwemh5d3JndGl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYxMjY2NjcsImV4cCI6MjEwMTcwMjY2N30.hZnlONauB0y20wMEF7OG5kRn2uR2PCvcVEfrAE9FoVI'))+'" placeholder="eyJhbGciOi... 或 sb_publishable_..."></div>'
@@ -6254,6 +6353,7 @@ function renderWork(){
   const overdue=pending.filter(t=>{const d=dueInfo(t.due);return d.has&&d.overdue;}).length;
   statEl.textContent='当前共有 '+n+' 件事，其中 '+urgent+' 件紧急，'+overdue+' 件已逾期。';
  }
+ if(f==='overdue'){ var ov=pending.filter(function(t){var d=dueInfo(t.due);return d.has&&d.overdue;}); titleEl.textContent='⏰ 逾期任务（'+ov.length+' 件）'; statEl.textContent='按逾期天数从高到低排列，先把最急的搞定！'; }
  ['1','2','3','done'].forEach(function(ff){
   const el=document.getElementById('wf-n-'+ff);
   if(el)el.textContent=(ff==='done'?done.length:pending.filter(t=>String(t.level)===ff).length);
@@ -6277,6 +6377,7 @@ function renderWorkList(){
  if(tg)list=sortTasks(all.filter(t=>(t.contacts||[]).includes(tg)&&pendF(t)));
  else if(f==='done')list=sortTasks(all.filter(t=>t.done&&!t.archived));
  else if(f==='routine')list=sortTasks(all.filter(t=>pendF(t)&&t.repeat&&t.repeat!=='none'));
+ else if(f==='overdue')list=sortTasks(all.filter(t=>pendF(t)&&(function(){var d=dueInfo(t.due);return d.has&&d.overdue;})())).sort(function(a,b){return (dueInfo(b.due).days||0)-(dueInfo(a.due).days||0);});
  else if(f==='all')list=sortTasks(all.filter(pendF));
  else list=sortTasks(all.filter(t=>pendF(t)&&String(t.level)===f));
  const container=document.getElementById('work-list');
@@ -6547,7 +6648,11 @@ function confirmDelTask(id){
 }
 function delTask(id){
  setTasks(getTasks().filter(t=>t.id!==id));
- closeConfirm();renderWork();renderTodayIfHome();
+ closeConfirm();
+ renderWork();
+ try{renderWorkDash();}catch(e){}
+ renderWorkHomeHint();
+ renderTodayIfHome();
 }
 function showDelaySheet(id){
  const m=document.getElementById('action-sheet');
@@ -6614,12 +6719,21 @@ function renderWorkDash(){
  const procrastTxt=procrast===0?'很准时，比广志强':(procrast<=3?'还行，勉强能救':'危险！小新都替你急');
  let html=''+
   '<div class="wd-cell"><div class="wd-num">'+doneWeek+'</div><div class="wd-lbl">本周完成</div></div>'+
-  '<div class="wd-cell"><div class="wd-num">'+overdue+'</div><div class="wd-lbl">逾期未处理</div></div>'+
+  '<div class="wd-cell" onclick="jumpToOverdue()" style="cursor:pointer"><div class="wd-num">'+overdue+'</div><div class="wd-lbl">逾期未处理</div></div>'+
   '<div class="wd-cell full"><div class="wd-lbl">最常对接人 Top3</div>'+
    (top3.length?top3.map(function(x){return '<span class="wk-sel-tag" style="margin:4px 6px 0 0">'+hEsc(x.k)+' · '+x.n+'</span>';}).join(''):'<div class="wd-note">还没有对接人，小新很孤独</div>')+
   '</div>'+
   '<div class="wd-cell full"><div class="wd-lbl">你的拖延指数</div><div class="wd-num" style="font-size:18px">平均逾期 '+procrast+' 天</div><div class="wd-note">'+procrastTxt+'</div></div>';
  const body=document.getElementById('work-dash-body');if(body)body.innerHTML=html;
+}
+function jumpToOverdue(){
+ try{
+  const pending=getTasks().filter(t=>!t.done);
+  const od=pending.filter(function(t){var d=dueInfo(t.due);return d.has&&d.overdue;});
+  if(od.length===0){toast('暂无逾期任务，继续保持！');return;}
+  switchTab('work');
+  setWorkFilter('overdue');
+ }catch(e){ console.warn('[jumpOverdue]',e); }
 }
 function toggleWorkDash(){
  const b=document.getElementById('work-dash-body');if(!b)return;
