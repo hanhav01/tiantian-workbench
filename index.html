@@ -4532,6 +4532,7 @@ function delShop(id){
 }
 function confirmDelShop(id){
  state.shopping=state.shopping.filter(s=>s.id!==id);
+ addTomb('shopping',id); // v50 记墓碑，让购物清单删除跨设备传播
  DB.set('shopping',state.shopping);
  closeConfirm();renderShopping();toast('已删除');
 }
@@ -4609,6 +4610,7 @@ function delExplore(id){
 }
 function confirmDelExplore(id){
  state.explores=state.explores.filter(e=>e.id!==id);
+ addTomb('explores',id); // v50 记墓碑，让探店记录删除跨设备传播
  DB.set('explores',state.explores);
  closeConfirm();renderExplore();toast('已删除');
 }
@@ -5303,7 +5305,7 @@ function openSettings(){
  '<div class="form-group"><label class="form-label">导出备份</label><div style="display:flex;gap:8px"><select id="export-fmt" style="flex:1;min-height:44px;border:1px solid var(--border2);border-radius:10px;padding:0 10px;font-size:13px;background:var(--bg)"><option value="json">JSON 完整备份</option><option value="bills">账单 CSV</option><option value="media">书影音 CSV</option></select><button class="btn-ghost" onclick="doExportByFmt()" style="white-space:nowrap;min-height:44px">导出</button></div></div>'+
  '<div style="display:flex;gap:8px;margin-bottom:8px"><button class="btn-ghost" onclick="importBackup()" style="flex:1">📥 导入恢复</button><button class="btn-ghost" onclick="clearAllData()" style="flex:1;color:var(--expense);border-color:var(--expense)">清空所有数据</button></div>'+
  '<div id="backup-history"></div>'+
- '<div class="sec-title"><div class="left" style="color:#3B82C4">数据同步</div><span style="font-size:10px;background:#E60012;color:#fff;padding:2px 8px;border-radius:6px;font-weight:700">v49</span></div>'
+ '<div class="sec-title"><div class="left" style="color:#3B82C4">数据同步</div><span style="font-size:10px;background:#E60012;color:#fff;padding:2px 8px;border-radius:6px;font-weight:700">v50</span></div>'
 +'<div class="card-tight card mb8" style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:13px">连服务器自动同步（手机电脑共享）</span><button class="btn-ghost" id="supa-on-btn" onclick="supaToggleOn()" style="font-size:12px;padding:6px 14px;min-height:34px">'+(DB.get('sync_on',false)?'已开启':'已关闭')+'</button></div>'
 +'<div class="form-group"><label class="form-label">Supabase 项目 URL</label><input type="text" id="sync-url" value="'+hEsc(DB.get('sync_url','https://zmlkhnhjqcpzhywrgtiw.supabase.co'))+'" placeholder="https://xxxx.supabase.co"></div>'
 +'<div class="form-group"><label class="form-label">anon / public key</label><input type="text" id="sync-key" value="'+hEsc(DB.get('sync_key','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InptbGtobmhqcWNwemh5d3JndGl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYxMjY2NjcsImV4cCI6MjEwMTcwMjY2N30.hZnlONauB0y20wMEF7OG5kRn2uR2PCvcVEfrAE9FoVI'))+'" placeholder="eyJhbGciOi... 或 sb_publishable_..."></div>'
@@ -6821,6 +6823,7 @@ function confirmDelTask(id){
 }
 function delTask(id){
  setTasks(getTasks().filter(t=>t.id!==id));
+ addTomb('tasks',id); // v50 记墓碑，让任务删除跨设备传播
  closeConfirm();
  renderWork();
  try{renderWorkDash();}catch(e){}
@@ -6966,7 +6969,7 @@ function getSyncCfg(){return{url:DB.get('sync_url',''),key:DB.get('sync_key','')
 var SYNC_WHITELIST={
   // === 核心数据（必须同步） ===
   accounts:{cap:0},          // 账户配置（小）
-  records:{cap:200},         // 记账记录（截断）
+  records:{cap:2000},        // 记账记录（v50 提升截断上限，配合 SYNC_MAX_KEY 提升避免整键跳过）
   tasks:{cap:200},           // 任务（截断）
   contactTags:{cap:0},       // 工作对接人标签（小）
   habits:{cap:0},            // 习惯定义（小）
@@ -7010,8 +7013,8 @@ var SYNC_WHITELIST={
 // 明确不需要同步的缓存键（不会计入"未同步"提示）
 var SYNC_IGNORE=['mediaCache'];
 // 仅 mediaCache 不同步（推荐缓存，自动重建）
-var SYNC_MAX_TOTAL=50*1024; // 总 payload 上限 50KB（v32 DELETE+INSERT 已验证可行）
-var SYNC_MAX_KEY=20*1024;    // 单条上限 20KB（总量已封顶，单条可稍宽）
+var SYNC_MAX_TOTAL=384*1024; // 总 payload 上限 384KB（v50 提升：records 增多后 50KB 会整键跳过，云端缺新记录）
+var SYNC_MAX_KEY=128*1024;    // 单条上限 128KB（v50 提升，避免 records 整键超限被跳过）
 
 var _lastSyncHash={};
 function _hashKey(k,v){ return k+':'+(v?v.length:0); }
@@ -7036,7 +7039,13 @@ function _slimValue(k,val,cap){
    if(Array.isArray(parsed)){
     var slim=_truncateArray(parsed,cap);
     var slimStr=JSON.stringify(slim);
-    if(slimStr.length>SYNC_MAX_KEY)return null; // 截断后仍超限
+    // v50 兜底：截断到 cap 后仍超单键上限时，渐进折半只保留最新部分，
+    // 而不是整键返回 null（旧逻辑会让该键完全不上云，云端停留在旧数据 → "记账丢失"观感）
+    while(slimStr.length>SYNC_MAX_KEY && slim.length>50){
+     slim=slim.slice(Math.floor(slim.length/2));
+     slimStr=JSON.stringify(slim);
+    }
+    if(slimStr.length>SYNC_MAX_KEY)return null;
     return slimStr;
    }
   }catch(e){/* 不是 JSON 或解析失败 */}
@@ -7093,6 +7102,9 @@ function supaSchedule(k){
  _syncDirty=true;
  clearTimeout(supaTimer); supaTimer=setTimeout(function(){ _syncDirty=false; supaPush(); },1500);
 }
+// v50 关页兜底：防抖 1.5s 内关闭页面会让最近一次修改不上云。
+// pagehide 时若有未推送的脏数据，先快照进待传队列；下次打开应用时启动逻辑会自动冲队列重推。
+window.addEventListener('pagehide',function(){ try{ if(typeof _syncDirty!=='undefined'&&_syncDirty){ _addPending(collectSyncData()); } }catch(e){} });
 // 解析 Supabase 错误，返回友好中文消息
 function supaFriendlyError(statusText){
  var m=statusText||'';
