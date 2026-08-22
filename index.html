@@ -1909,6 +1909,8 @@ function dateStr(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
 function hEsc(s){return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 function fmtMoney(n){return(n<0?'-¥':'¥')+Math.abs(n).toFixed(2).replace(/\.00$/,'')}
+// 金额四舍五入至分，杜绝浮点累加产生的几十位小数尾数
+function round2(n){ var v=Math.round((Number(n)||0)*100)/100; return v; }
 function isNight(){const h=new Date().getHours();return h>=21||h<7}
 
 // ============ 小新 SVG ============
@@ -2321,9 +2323,17 @@ function migrateData(){
    });
   }
  });
+ // 金额清洗：把浮点累加产生的几十位小数尾数按分取整（幂等，仅当存在脏值才置 changed）
+ if(Array.isArray(state.records)) state.records.forEach(r=>{
+  if(r&&typeof r.amount==='number'){ const c=round2(r.amount); if(c!==r.amount){r.amount=c;changed=true} }
+ });
+ if(Array.isArray(state.accounts)) state.accounts.forEach(a=>{
+  if(a&&typeof a.balance==='number'){ const c=round2(a.balance); if(c!==a.balance){a.balance=c;changed=true} }
+ });
  if(changed){
   DB.set('shopping',state.shopping);
   DB.set('records',state.records);
+  DB.set('accounts',state.accounts);
  }
 }
 // ============ 状态兜底（兼容旧版/损坏的 localStorage，避免整页脚本崩溃） ============
@@ -3439,7 +3449,7 @@ function openRecordModal(prefill){
  let curSub=prefill?.sub||'';
  let curAcct=prefill?.acct||state.accounts[0].id;
  let curTags=prefill?.tags||[];
- let curAmt=prefill?.amount||'';
+ let curAmt=(prefill&&prefill.amount!=null)?round2(prefill.amount):'';
  let curNote=prefill?.note||'';
  let nightHtml='';
  if(night&&curType!=='income'){
@@ -3562,7 +3572,7 @@ function saveRecord(){
  const type=document.querySelector('.type-tab.active')?.textContent.trim();
  const typeMap={'支出':'expense','收入':'income','转账':'transfer'};
  const t=typeMap[type]||'expense';
- const amt=parseFloat(document.getElementById('rec-amt').value);
+ const amt=round2(parseFloat(document.getElementById('rec-amt').value));
  if(!amt||amt<=0){toast('请输入金额');return}
  const catEl=document.querySelector('#rec-cat-area .cat-btn.active[data-cat]');
  const subEl=document.querySelector('#rec-cat-area .cat-btn.active[data-sub]');
@@ -3580,11 +3590,11 @@ function saveRecord(){
  if(_editRec){
   const old=_editRec;
   const oldAcct=state.accounts.find(a=>a.id===old.acct);
-  if(oldAcct){if(old.type==='expense')oldAcct.balance+=old.amount;else if(old.type==='income')oldAcct.balance-=old.amount;}
+  if(oldAcct){if(old.type==='expense')oldAcct.balance=round2(oldAcct.balance+old.amount);else if(old.type==='income')oldAcct.balance=round2(oldAcct.balance-old.amount);}
   const upd={id:_editId,type:t,cat,sub,amount:amt,acct,tags,note,date,ts:old.ts};
   state.records=state.records.map(r=>r.id===_editId?upd:r);
   const na=state.accounts.find(a=>a.id===acct);
-  if(na){if(t==='expense')na.balance-=amt;else if(t==='income')na.balance+=amt;}
+  if(na){if(t==='expense')na.balance=round2(na.balance-amt);else if(t==='income')na.balance=round2(na.balance+amt);}
   var _rec=state.records.find(function(r){return r.id===_editId;});
   var _selId=document.getElementById('rec-shop')?.value||'';
   if(_rec){ _rec.shopItemId=_selId||null; syncRecShop(_rec,_selId); }
@@ -3607,7 +3617,7 @@ function saveRecord(){
  // Pending explore cost hook
  if(window._pendingExpId){
   const ex=state.explores.find(x=>x.id===window._pendingExpId);
-  if(ex){ex.cost=amt;DB.set('explores',state.explores);renderExplore()}
+  if(ex){ex.cost=round2(amt);DB.set('explores',state.explores);renderExplore()}
   window._pendingExpId=null;
  }
  // Impulse spending consequences
@@ -3652,8 +3662,8 @@ function addRecord(rec){
  state.records.push(rec);
  const acct=state.accounts.find(a=>a.id===rec.acct);
  if(acct){
-  if(rec.type==='expense')acct.balance-=rec.amount;
-  else if(rec.type==='income')acct.balance+=rec.amount;
+  if(rec.type==='expense')acct.balance=round2(acct.balance-rec.amount);
+  else if(rec.type==='income')acct.balance=round2(acct.balance+rec.amount);
  }
  DB.set('records',state.records);
  DB.set('accounts',state.accounts);
@@ -3698,8 +3708,8 @@ function confirmDelRecord(id){
  if(!rec){closeConfirm();return}
  const acct=state.accounts.find(a=>a.id===rec.acct);
  if(acct){
-  if(rec.type==='expense')acct.balance+=rec.amount;
-  else if(rec.type==='income')acct.balance-=rec.amount;
+  if(rec.type==='expense')acct.balance=round2(acct.balance+rec.amount);
+  else if(rec.type==='income')acct.balance=round2(acct.balance-rec.amount);
  }
  // 退还因冲动消费扣减的零花钱
  const tags=rec.tags||[];
@@ -3776,7 +3786,7 @@ function addAccount(){
 function accountFlowSum(i){
  var aid=state.accounts[i].id, sum=0;
  state.records.forEach(function(r){ if(r.acct===aid){ if(r.type==='income')sum+=r.amount; else if(r.type==='expense')sum-=r.amount; } });
- return sum;
+ return round2(sum);
 }
 function reconcileAccount(i){
  var a=state.accounts[i]; if(!a)return;
@@ -3793,7 +3803,7 @@ function reconcileAccount(i){
 function fixAccountBalance(i,diff){
  var a=state.accounts[i]; if(!a)return;
  // 余额字段是权威真实值（由校准设定），校正记录只补到流水里让流水追上余额，不改写余额
- var amt=Math.abs(diff), type=diff>0?'income':'expense';
+ var amt=round2(Math.abs(diff)), type=diff>0?'income':'expense';
  var rec={id:uid(),type:type,cat:'其他',sub:'余额校正',amount:amt,acct:a.id,tags:[],note:'账户余额校正',date:todayStr(),ts:Date.now()};
  try{
   state.records.push(rec);
@@ -3820,7 +3830,7 @@ function openCalibrateInput(i){
  const a=state.accounts[i]; if(!a)return;
  const m=document.getElementById('action-sheet');
  m.innerHTML='<div class="as-title">校准「'+esc(a.name)+'」余额</div>'+
-  '<div class="form-group" style="padding:14px 4px 0"><label class="form-label">当前余额</label><input type="number" id="cal-bal" value="'+a.balance+'" inputmode="decimal" style="font-size:16px;width:100%"></div>'+
+  '<div class="form-group" style="padding:14px 4px 0"><label class="form-label">当前余额</label><input type="number" id="cal-bal" value="'+round2(a.balance)+'" inputmode="decimal" style="font-size:16px;width:100%"></div>'+
   '<div class="cb-row" style="margin-top:18px"><button class="btn-ghost" onclick="closeActionSheet()">取消</button><button class="btn-primary" onclick="saveCalibrate('+i+')">保存</button></div>';
  document.getElementById('action-sheet-bg').classList.add('show');
  setTimeout(function(){const el=document.getElementById('cal-bal');if(el){el.focus();el.select&&el.select()}},80);
@@ -3828,7 +3838,7 @@ function openCalibrateInput(i){
 function saveCalibrate(i){
  const val=parseFloat(document.getElementById('cal-bal').value);
  if(isNaN(val)){toast('请输入有效数字');return}
- state.accounts[i].balance=val;
+ state.accounts[i].balance=round2(val);
  DB.set('accounts',state.accounts);
  closeActionSheet();
  openAccountModal();
@@ -5144,7 +5154,7 @@ function exportMediaCSV(){
 }
 function exportCSV(){
  const rows=[['日期','类型','分类','子分类','金额','标签','备注']];
- state.records.forEach(function(r){rows.push([r.date||'',r.type==='income'?'收入':r.type==='expense'?'支出':'转账',r.cat||'',r.sub||'',r.amount||'',(r.tags||[]).join('/'),r.note||'']);});
+ state.records.forEach(function(r){rows.push([r.date||'',r.type==='income'?'收入':r.type==='expense'?'支出':'转账',r.cat||'',r.sub||'',round2(r.amount||0),(r.tags||[]).join('/'),r.note||'']);});
  downloadCSV('账单_'+todayStr()+'.csv',rows);
 }
 function downloadCSV(name,rows){
@@ -5293,7 +5303,7 @@ function openSettings(){
  '<div class="form-group"><label class="form-label">导出备份</label><div style="display:flex;gap:8px"><select id="export-fmt" style="flex:1;min-height:44px;border:1px solid var(--border2);border-radius:10px;padding:0 10px;font-size:13px;background:var(--bg)"><option value="json">JSON 完整备份</option><option value="bills">账单 CSV</option><option value="media">书影音 CSV</option></select><button class="btn-ghost" onclick="doExportByFmt()" style="white-space:nowrap;min-height:44px">导出</button></div></div>'+
  '<div style="display:flex;gap:8px;margin-bottom:8px"><button class="btn-ghost" onclick="importBackup()" style="flex:1">📥 导入恢复</button><button class="btn-ghost" onclick="clearAllData()" style="flex:1;color:var(--expense);border-color:var(--expense)">清空所有数据</button></div>'+
  '<div id="backup-history"></div>'+
- '<div class="sec-title"><div class="left" style="color:#3B82C4">数据同步</div><span style="font-size:10px;background:#E60012;color:#fff;padding:2px 8px;border-radius:6px;font-weight:700">v48</span></div>'
+ '<div class="sec-title"><div class="left" style="color:#3B82C4">数据同步</div><span style="font-size:10px;background:#E60012;color:#fff;padding:2px 8px;border-radius:6px;font-weight:700">v49</span></div>'
 +'<div class="card-tight card mb8" style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:13px">连服务器自动同步（手机电脑共享）</span><button class="btn-ghost" id="supa-on-btn" onclick="supaToggleOn()" style="font-size:12px;padding:6px 14px;min-height:34px">'+(DB.get('sync_on',false)?'已开启':'已关闭')+'</button></div>'
 +'<div class="form-group"><label class="form-label">Supabase 项目 URL</label><input type="text" id="sync-url" value="'+hEsc(DB.get('sync_url','https://zmlkhnhjqcpzhywrgtiw.supabase.co'))+'" placeholder="https://xxxx.supabase.co"></div>'
 +'<div class="form-group"><label class="form-label">anon / public key</label><input type="text" id="sync-key" value="'+hEsc(DB.get('sync_key','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InptbGtobmhqcWNwemh5d3JndGl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYxMjY2NjcsImV4cCI6MjEwMTcwMjY2N30.hZnlONauB0y20wMEF7OG5kRn2uR2PCvcVEfrAE9FoVI'))+'" placeholder="eyJhbGciOi... 或 sb_publishable_..."></div>'
