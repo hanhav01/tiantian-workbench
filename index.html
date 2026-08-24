@@ -2371,6 +2371,7 @@ normalizeState();
 function addPoints(delta,reason){
  const prev=state.points;
  state.points=Math.max(0,state.points+delta);
+ const applied=state.points-prev; // v51 实际生效的变动（封底时 |applied|<|delta|）
  state.pointsLog.push({delta,reason,ts:Date.now(),balance:state.points});
  if(state.pointsLog.length>200)state.pointsLog=state.pointsLog.slice(-200);
  DB.set('points',state.points);
@@ -2386,6 +2387,7 @@ function addPoints(delta,reason){
   state.shinAwayUntil=Date.now()+5*60000;DB.set('shinAwayUntil',state.shinAwayUntil);
   setTimeout(()=>{shinPop('idle','我回来了，因为肚子饿了。',4000);state.shinAwayUntil=0;DB.set('shinAwayUntil',0)},5*60000);
  }
+ return applied; // v51 返回实际生效变动，供精确退款
 }
 function getPointsLevel(){
  if(state.points<=0)return'zero';
@@ -2912,9 +2914,9 @@ function renderUrgentItems(){
   if(!log||log.val<(h.minTarget||h.target)){
    const yLog=state.habitLogs[yesterday]?.[h.id];
    if(!yLog||yLog.val<(h.minTarget||h.target)){
-    items.push({type:'habit-overdue',text:'习惯「'+h.name+'」昨天未完成，今天继续',tag:'逾期',action:()=>openHabits()});
+    items.push({type:'habit-overdue',text:'习惯「'+hEsc(h.name)+'」昨天未完成，今天继续',tag:'逾期',action:()=>openHabits()});
    }else{
-    items.push({type:'habit',text:'习惯「'+h.name+'」今天还没打卡',tag:'待打卡',action:()=>openHabits()});
+    items.push({type:'habit',text:'习惯「'+hEsc(h.name)+'」今天还没打卡',tag:'待打卡',action:()=>openHabits()});
    }
   }
  });
@@ -3076,7 +3078,7 @@ function checkInFirstHabit(){
  const h=undone[0];
  if(h.target<=1||h.mode==='toggle'){
   if(h.mode==='toggle')toggleHabitDone(h.id); else toggleHabit(h.id);
-  showDynIsland('<path d="M20 6L9 17l-5-5"/>','打卡成功：'+h.name);
+  showDynIsland('<path d="M20 6L9 17l-5-5"/>','打卡成功：'+hEsc(h.name));
  }else{
   openHabits();
   toast('去完成「'+h.name+'」吧');
@@ -3146,7 +3148,7 @@ function doOneThing(){
   state.habitLogs[ts][h.id]={val:1,note:''};
   DB.set('habitLogs',state.habitLogs);
   renderHabits();renderToday();
-  showDynIsland('<path d="M20 6L9 17l-5-5"/>','打卡成功：'+h.name);
+  showDynIsland('<path d="M20 6L9 17l-5-5"/>','打卡成功：'+hEsc(h.name));
   setTimeout(()=>promptHabitNote(h.id),300);
  }else{
   openHabits();
@@ -3213,7 +3215,7 @@ function generateWeeklyReport(host){
  ${lossHtml}
  <div class="wr-section">
   <div class="bold mb8" style="font-size:14px">习惯打卡</div>
-  ${habitStats.map(h=>`<div class="wr-stat"><span>${h.name}</span><span class="wr-val">${h.done}/${h.total} · 连续${h.streak}天</span></div>`).join('')}
+  ${habitStats.map(h=>`<div class="wr-stat"><span>${hEsc(h.name)}</span><span class="wr-val">${h.done}/${h.total} · 连续${h.streak}天</span></div>`).join('')}
   <div class="wr-stat mt8" style="border-top:1.5px dashed var(--border2);padding-top:8px"><span>总计</span><span class="wr-val">${totalHabitDone}/${totalHabitTarget}</span></div>
  </div>
  <div class="wr-section">
@@ -3431,7 +3433,8 @@ function renderAccounting(){
    const shopTag=(r.shopItemId&&r.shopName)?'<span class="rec-tag" style="background:#E8F5E9;color:#2E7D32">🛒 已关联：'+hEsc(r.shopName)+'</span>':'';
    const sign=r.type==='income'?'+':'-';
    const cls=r.type==='income'?'inc':'exp';
-   html+='<div class="rec-item'+(isImpulse?' impulse-row':'')+'" onclick="openRecordAction(\''+r.id+'\')"><div class="rec-cat" style="background:var(--surface2)">'+catIcon+'</div><div class="rec-mid"><div class="rt">'+hEsc(r.sub||r.cat)+(r.note?' · '+hEsc(r.note):'')+(shopTag?' '+shopTag:'')+'</div><div class="rs">'+hEsc(r.cat)+' · '+hEsc((state.accounts.find(a=>a.id===r.acct)||{}).name||'')+(tagHtml?' · ':'')+tagHtml+'</div></div><div class="rec-amt '+cls+'">'+sign+fmtMoney(r.amount)+'</div><div class="rec-del" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/></svg></div></div>';
+   const trfInfo=(r.type==='transfer'&&r.acctTo)?' → '+hEsc((state.accounts.find(a=>a.id===r.acctTo)||{}).name||''):'';
+   html+='<div class="rec-item'+(isImpulse?' impulse-row':'')+'" onclick="openRecordAction(\''+r.id+'\')"><div class="rec-cat" style="background:var(--surface2)">'+catIcon+'</div><div class="rec-mid"><div class="rt">'+(r.type==='transfer'?'↔ 转账':hEsc(r.sub||r.cat))+(r.note?' · '+hEsc(r.note):'')+(shopTag?' '+shopTag:'')+'</div><div class="rs">'+hEsc(r.cat)+' · '+hEsc((state.accounts.find(a=>a.id===r.acct)||{}).name||'')+trfInfo+(tagHtml?' · ':'')+tagHtml+'</div></div><div class="rec-amt '+cls+'">'+sign+fmtMoney(r.amount)+'</div><div class="rec-del" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/></svg></div></div>';
   });
  }
  const recEl=document.getElementById('rec-list'); if(recEl)recEl.innerHTML=html;
@@ -3442,7 +3445,7 @@ function renderAccounting(){
 function openRecordModal(prefill){
  if(prefill&&prefill.id)window._editRecId=prefill.id; else window._editRecId=null; // 显式重置编辑态，避免残留导致新记录被误当成编辑
  const night=isNight();
- const accts=state.accounts.map(a=>'<div class="cat-btn '+(prefill&&prefill.acct===a.id?'active':'')+'" data-acct="'+a.id+'">'+(a.icon||'')+'<span>'+a.name+'</span></div>').join('');
+ const accts=state.accounts.map(a=>'<div class="cat-btn '+(prefill&&prefill.acct===a.id?'active':'')+'" data-acct="'+a.id+'">'+(a.icon||'')+'<span>'+hEsc(a.name)+'</span></div>').join('');
  const m=document.getElementById('modal');
  let curType=prefill?.type||'expense';
  let curCat=prefill?.cat||'';
@@ -3461,14 +3464,16 @@ function openRecordModal(prefill){
  '<div id="loss-equiv-area"></div>'+
  '<div id="rec-cat-area"></div>'+
  '<div class="form-group"><label class="form-label">账户</label><div class="cat-grid" id="rec-acct">'+accts+'</div></div>'+
+ '<div class="form-group" id="rec-acct-to-area" style="display:none"></div>'+
  '<div class="form-group" id="tag-area"><label class="form-label">冲动标签</label><div class="tag-row" id="rec-tags">'+TAGS.map(t=>'<div class="tag-chip '+(curTags.includes(t.k)?'active':'')+'" data-tag="'+t.k+'">'+t.k+'</div>').join('')+'</div><div class="small mt8">选「胡闹」或「广志的泪」会触发损失换算和扣分；「精神食粮」用来标记买书买碟买电影票，不扣分。</div></div>'+
- '<div class="form-group"><label class="form-label">备注</label><input type="text" id="rec-note" placeholder="写点什么..." value="'+curNote+'"></div>'+
+ '<div class="form-group"><label class="form-label">备注</label><input type="text" id="rec-note" placeholder="写点什么..." value="'+hEsc(curNote)+'"></div>'+
 '<div class="form-group" id="rec-shop-area"></div>'+
  '<div class="form-group"><label class="form-label">日期</label><input type="date" id="rec-date" value="'+(prefill?.date||todayStr())+'"></div>'+
  '<button class="btn-primary" onclick="saveRecord()">确认记入</button><div id="rec-hook-area" class="mt12"></div>';
  openModal();
  renderCatGrid(curType,curCat,curSub);
  bindRecEvents();
+ renderAcctToSelector(prefill&&prefill.acctTo);
  renderRecShopSelector(prefill&&prefill.shopItemId);
  // Live loss equiv on amount change
  const amtInput=document.getElementById('rec-amt');
@@ -3505,7 +3510,7 @@ let _recState={type:'expense',cat:'',sub:'',acct:'',tags:[]};
 function bindRecEvents(){
  _recState={type:document.querySelector('.type-tab.active')?.dataset?.tab||'expense'};
  document.querySelectorAll('.type-tab').forEach(t=>t.onclick=()=>setRecType(t.textContent.trim()==='支出'?'expense':t.textContent.trim()==='收入'?'income':'transfer'));
- document.querySelectorAll('#rec-acct .cat-btn').forEach(b=>b.onclick=()=>{document.querySelectorAll('#rec-acct .cat-btn').forEach(x=>x.classList.remove('active'));b.classList.add('active')});
+ document.querySelectorAll('#rec-acct .cat-btn').forEach(b=>b.onclick=()=>{document.querySelectorAll('#rec-acct .cat-btn').forEach(x=>x.classList.remove('active'));b.classList.add('active');renderAcctToSelector();});
  document.querySelectorAll('#rec-tags .tag-chip').forEach(c=>{c.onclick=()=>{c.classList.toggle('active');updateLossEquiv()}});
 }
 function setRecType(type){
@@ -3515,8 +3520,12 @@ function setRecType(type){
  const aw=document.querySelector('.amt-wrap');
  aw.className='amt-wrap '+(type==='expense'?'exp':type==='income'?'inc':'');
  document.getElementById('tag-area').style.display=type==='transfer'?'none':'';
+ if(type==='transfer'){ // 切到转账时清掉冲动标签，避免隐藏区残留 active 被误读
+  document.querySelectorAll('#rec-tags .tag-chip.active').forEach(c=>c.classList.remove('active'));
+ }
  document.getElementById('loss-equiv-area').innerHTML='';
  renderCatGrid(type,'','');
+ renderAcctToSelector();
  renderRecShopSelector();
 }
 function renderCatGrid(type,selCat,selSub){
@@ -3543,6 +3552,24 @@ function renderCatGrid(type,selCat,selSub){
   area.querySelectorAll('[data-sub]').forEach(x=>x.classList.remove('active'));
   b.classList.add('active');
  });
+}
+function renderAcctToSelector(selToId){
+ var area=document.getElementById('rec-acct-to-area'); if(!area)return;
+ var curType=document.querySelector('.type-tab.active')?.textContent.trim();
+ if(curType!=='转账'){ area.style.display='none'; area.innerHTML=''; return; }
+ area.style.display='';
+ var srcId=document.querySelector('#rec-acct .cat-btn.active')?.dataset.acct||'';
+ var cands=state.accounts.filter(function(a){return a.id!==srcId;});
+ if(selToId&&srcId===selToId)selToId=''; // 源账户切换后原目标失效
+ if(selToId&&!cands.some(function(a){return a.id===selToId;}))selToId='';
+ if(!selToId&&cands.length)selToId=cands[0].id; // 默认选中第一个候选
+ var html='<label class="form-label">转入账户</label><div class="cat-grid" id="rec-acct-to">';
+ cands.forEach(function(a){
+  html+='<div class="cat-btn '+(selToId===a.id?'active':'')+'" data-acct="'+a.id+'">'+(a.icon||'')+'<span>'+hEsc(a.name)+'</span></div>';
+ });
+ html+='</div><div class="small mt8">从上面的账户转出，转入到这里（双边余额都会变动）。</div>';
+ area.innerHTML=html;
+ area.querySelectorAll('.cat-btn').forEach(function(b){ b.onclick=function(){ area.querySelectorAll('.cat-btn').forEach(function(x){x.classList.remove('active')}); b.classList.add('active'); }; });
 }
 function renderRecShopSelector(selId){
  var area=document.getElementById('rec-shop-area'); if(!area)return;
@@ -3583,6 +3610,10 @@ function saveRecord(){
  const cat=catEl?.dataset.cat||'其他';
  const sub=subEl?.dataset.sub||'';
  const acct=acctEl?.dataset.acct||state.accounts[0].id;
+ // v51 转账：读取转入账户
+ const acctToEl=document.querySelector('#rec-acct-to .cat-btn.active');
+ var acctTo=(t==='transfer'&&acctToEl)?acctToEl.dataset.acct:null;
+ if(t==='transfer'&&!acctTo){toast('请选择转入账户');return}
  // Edit mode: update existing record and revert/apply account balance
  // v35 加固：以"该 id 是否真实存在于当前记录"判定编辑态，避免 _editRecId 残留/错位把新记录误当旧记录覆盖
  var _editId=window._editRecId;
@@ -3590,20 +3621,56 @@ function saveRecord(){
  if(_editRec){
   const old=_editRec;
   const oldAcct=state.accounts.find(a=>a.id===old.acct);
-  if(oldAcct){if(old.type==='expense')oldAcct.balance=round2(oldAcct.balance+old.amount);else if(old.type==='income')oldAcct.balance=round2(oldAcct.balance-old.amount);}
+  if(oldAcct){
+   if(old.type==='expense')oldAcct.balance=round2(oldAcct.balance+old.amount);
+   else if(old.type==='income')oldAcct.balance=round2(oldAcct.balance-old.amount);
+   else if(old.type==='transfer'){ // v51 回滚旧转账双边
+    oldAcct.balance=round2(oldAcct.balance+old.amount);
+    var oldTo=state.accounts.find(a=>a.id===old.acctTo);
+    if(oldTo&&oldTo.id!==old.acct)oldTo.balance=round2(oldTo.balance-old.amount);
+   }
+  }
   const upd={id:_editId,type:t,cat,sub,amount:amt,acct,tags,note,date,ts:old.ts};
+  if(t==='transfer')upd.acctTo=acctTo;
   state.records=state.records.map(r=>r.id===_editId?upd:r);
   const na=state.accounts.find(a=>a.id===acct);
-  if(na){if(t==='expense')na.balance=round2(na.balance-amt);else if(t==='income')na.balance=round2(na.balance+amt);}
+  if(na){
+   if(t==='expense')na.balance=round2(na.balance-amt);
+   else if(t==='income')na.balance=round2(na.balance+amt);
+   else if(t==='transfer'){ // v51 应用新转账双边
+    na.balance=round2(na.balance-amt);
+    var nTo=state.accounts.find(a=>a.id===acctTo);
+    if(nTo&&nTo.id!==acct)nTo.balance=round2(nTo.balance+amt);
+   }
+  }
   var _rec=state.records.find(function(r){return r.id===_editId;});
   var _selId=document.getElementById('rec-shop')?.value||'';
   if(_rec){ _rec.shopItemId=_selId||null; syncRecShop(_rec,_selId); }
+  // v51 编辑改标签：冲动标记变更时退/补积分（保持积分账目与记录一致）
+  const _oldTags=old.tags||[];
+  const _oldImp=old.type==='expense'&&(_oldTags.includes('胡闹')||_oldTags.includes('广志的泪'));
+  const _newImp=t==='expense'&&(tags.includes('胡闹')||tags.includes('广志的泪'));
+  if(_oldImp&&!_newImp){
+   let _back;
+   if(old.impulsePts!=null)_back=old.impulsePts;
+   else{ _back=_oldTags.includes('广志的泪')?100:50; const _rh=new Date(old.ts||0).getHours(); if(_rh>=21||_rh<7)_back+=100; }
+   addPoints(_back,'编辑取消冲动标记，退还积分');
+  }else if(!_oldImp&&_newImp){
+   const _sev=tags.includes('广志的泪');
+   let _cost=_sev?100:50; if(isNight())_cost+=100;
+   const _app=addPoints(-_cost,'编辑标记冲动消费: '+(sub||cat));
+   upd.impulsePts=-_app;
+   state.noImpulseStreak=0; DB.set('noImpulseStreak',0);
+  }else if(_oldImp&&_newImp&&old.impulsePts!=null){
+   upd.impulsePts=old.impulsePts; // 标记保留：沿用原实际扣除额，删除时按此退还
+  }
   DB.set('records',state.records);DB.set('accounts',state.accounts);
   window._editRecId=null;
   closeModal();renderAccounting();renderToday();checkBackupHint();toast('已更新这笔记录');
   return;
  }
  const rec={id:uid(),type:t,cat,sub,amount:amt,acct,tags,note,date,ts:Date.now()};
+ if(t==='transfer')rec.acctTo=acctTo;
  try{ addRecord(rec); }catch(e){ console.warn('[addRecord]',e); }
  var _selId=document.getElementById('rec-shop')?.value||'';
  if(_selId){ rec.shopItemId=_selId; syncRecShop(rec,_selId); DB.set('records',state.records); renderAccounting(); }
@@ -3625,7 +3692,9 @@ function saveRecord(){
   const isSevere=tags.includes('广志的泪');
   let pointsCost=isSevere?100:50;
   if(isNight())pointsCost+=100;
-  addPoints(-pointsCost,'冲动消费: '+(sub||cat)+(isSevere?' [广志的泪]':''));
+  const _applied=addPoints(-pointsCost,'冲动消费: '+(sub||cat)+(isSevere?' [广志的泪]':''));
+  rec.impulsePts=-_applied; // v51 记录实际扣除额（封底时<pointsCost），删除/取消标记时精确退还
+  try{ DB.set('records',state.records); }catch(e){}
   // Crack effect
   document.body.classList.add('crack-active');
   // Flash effect
@@ -3664,6 +3733,11 @@ function addRecord(rec){
  if(acct){
   if(rec.type==='expense')acct.balance=round2(acct.balance-rec.amount);
   else if(rec.type==='income')acct.balance=round2(acct.balance+rec.amount);
+  else if(rec.type==='transfer'){ // v51 转账双边动账：转出减、转入加
+   acct.balance=round2(acct.balance-rec.amount);
+   const to=state.accounts.find(a=>a.id===rec.acctTo);
+   if(to&&to.id!==rec.acct)to.balance=round2(to.balance+rec.amount);
+  }
  }
  DB.set('records',state.records);
  DB.set('accounts',state.accounts);
@@ -3710,16 +3784,25 @@ function confirmDelRecord(id){
  if(acct){
   if(rec.type==='expense')acct.balance=round2(acct.balance+rec.amount);
   else if(rec.type==='income')acct.balance=round2(acct.balance-rec.amount);
+  else if(rec.type==='transfer'){ // v51 回滚转账双边
+   acct.balance=round2(acct.balance+rec.amount);
+   const to=state.accounts.find(a=>a.id===rec.acctTo);
+   if(to&&to.id!==rec.acct)to.balance=round2(to.balance-rec.amount);
+  }
  }
  // 退还因冲动消费扣减的零花钱
  const tags=rec.tags||[];
  const isImpulse=tags.includes('胡闹')||tags.includes('广志的泪');
  if(rec.type==='expense'&&isImpulse){
-  const isSevere=tags.includes('广志的泪');
-  let refund=isSevere?100:50;
-  // 判断记账时间是否为夜间（21点-7点），夜间额外扣了100分
-  const recHour=new Date(rec.ts||0).getHours();
-  if(recHour>=21||recHour<7)refund+=100;
+  let refund;
+  if(rec.impulsePts!=null){ // v51 按"实际扣除额"精确退还（积分封底时旧逻辑会多退）
+   refund=rec.impulsePts;
+  }else{ // 旧数据兜底：按当时规则推算
+   const isSevere=tags.includes('广志的泪');
+   refund=isSevere?100:50;
+   const recHour=new Date(rec.ts||0).getHours();
+   if(recHour>=21||recHour<7)refund+=100;
+  }
   addPoints(refund,'删除冲动记录，退还积分: '+(rec.sub||rec.cat));
  }
  state.records=state.records.filter(r=>r.id!==id);
@@ -3767,8 +3850,8 @@ function linkExploreRec(id,amt){
 function openAccountModal(){
  const m=document.getElementById('modal');
  m.innerHTML='<div class="modal-h"><h2>账户管理</h2><div class="modal-close" onclick="dismissModal()"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></div></div>'+
- state.accounts.map((a,i)=>
-  '<div class="card-tight card mb8" style="display:flex;align-items:center;gap:12px"><div style="font-size:24px">'+(a.icon||'')+'</div><div style="flex:1"><div style="font-weight:600">'+hEsc(a.name)+'</div><div class="small" style="color:'+(a.balance<0?'var(--expense)':'var(--text3)')+'">'+fmtMoney(a.balance)+'</div></div><button class="btn-ghost" onclick="reconcileAccount('+i+')" style="font-size:11px;padding:6px 10px;min-height:34px;color:#3B82C4;border-color:#3B82C4">对账</button><button class="btn-ghost" onclick="calibrateAccount('+i+')" style="font-size:11px;padding:6px 10px;min-height:34px">校准</button><button class="icon-btn" onclick="delAccount('+i+')" style="width:32px;height:32px;min-height:32px"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="var(--expense)" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/></svg></button></div>'
+ state.accounts.map(a=>
+  '<div class="card-tight card mb8" style="display:flex;align-items:center;gap:12px"><div style="font-size:24px">'+(a.icon||'')+'</div><div style="flex:1"><div style="font-weight:600">'+hEsc(a.name)+'</div><div class="small" style="color:'+(a.balance<0?'var(--expense)':'var(--text3)')+'">'+fmtMoney(a.balance)+'</div></div><button class="btn-ghost" onclick="reconcileAccount(\''+a.id+'\')" style="font-size:11px;padding:6px 10px;min-height:34px;color:#3B82C4;border-color:#3B82C4">对账</button><button class="btn-ghost" onclick="calibrateAccount(\''+a.id+'\')" style="font-size:11px;padding:6px 10px;min-height:34px">校准</button><button class="icon-btn" onclick="delAccount(\''+a.id+'\')" style="width:32px;height:32px;min-height:32px"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="var(--expense)" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/></svg></button></div>'
  ).join('')+
  '<div class="sec-title"><div class="left">添加账户</div></div><div class="form-group"><input type="text" id="new-acct-name" placeholder="账户名称（如：招行储蓄卡）"></div><div class="cat-grid" id="new-acct-icons">'+['💵','💳','📱','💬','🏦','💰'].map((ic,i)=>'<div class="cat-btn '+(i===0?'active':'')+'" data-icon="'+ic+'">'+ic+'</div>').join('')+'</div><div class="form-group mt12"><input type="number" id="new-acct-bal" placeholder="初始余额" inputmode="decimal"></div><button class="btn-primary" onclick="addAccount()">添加账户</button>';
  openModal();
@@ -3783,14 +3866,20 @@ function addAccount(){
  DB.set('accounts',state.accounts);
  closeModal();renderAccounting();toast('账户已添加');
 }
-function accountFlowSum(i){
- var aid=state.accounts[i].id, sum=0;
- state.records.forEach(function(r){ if(r.acct===aid){ if(r.type==='income')sum+=r.amount; else if(r.type==='expense')sum-=r.amount; } });
+function accountFlowSum(acctId){
+ var sum=0;
+ state.records.forEach(function(r){
+  if(r.acct===acctId){
+   if(r.type==='income')sum+=r.amount;
+   else if(r.type==='expense')sum-=r.amount;
+   else if(r.type==='transfer')sum-=r.amount; // v51 转出计减
+  }else if(r.type==='transfer'&&r.acctTo===acctId){ sum+=r.amount; } // v51 转入计加
+ });
  return round2(sum);
 }
-function reconcileAccount(i){
- var a=state.accounts[i]; if(!a)return;
- var flow=accountFlowSum(i);
+function reconcileAccount(acctId){
+ var a=state.accounts.find(x=>x.id===acctId); if(!a)return;
+ var flow=accountFlowSum(acctId);
  var diff=a.balance-flow;
  if(Math.abs(diff)<0.005){
   confirmBox('对账结果','✅ 账户「'+esc(a.name)+'」余额与流水一致，无需修正。','<div class="cb-row"><button class="btn-primary" onclick="closeConfirm()">好的</button></div>');
@@ -3798,10 +3887,10 @@ function reconcileAccount(i){
  }
  var sign=diff<0?'-':'+';
  confirmBox('对账结果','账户「'+esc(a.name)+'」流水计算余额：'+fmtMoney(flow)+'，当前账户余额：'+fmtMoney(a.balance)+'，差异：'+sign+fmtMoney(Math.abs(diff))+'。',
-  '<div class="cb-row"><button class="btn-ghost" onclick="closeConfirm()">暂不修正</button><button class="btn-primary" onclick="fixAccountBalance('+i+','+diff+')">一键修正</button></div>');
+  '<div class="cb-row"><button class="btn-ghost" onclick="closeConfirm()">暂不修正</button><button class="btn-primary" onclick="fixAccountBalance(\''+acctId+'\','+diff+')">一键修正</button></div>');
 }
-function fixAccountBalance(i,diff){
- var a=state.accounts[i]; if(!a)return;
+function fixAccountBalance(acctId,diff){
+ var a=state.accounts.find(x=>x.id===acctId); if(!a)return;
  // 余额字段是权威真实值（由校准设定），校正记录只补到流水里让流水追上余额，不改写余额
  var amt=round2(Math.abs(diff)), type=diff>0?'income':'expense';
  var rec={id:uid(),type:type,cat:'其他',sub:'余额校正',amount:amt,acct:a.id,tags:[],note:'账户余额校正',date:todayStr(),ts:Date.now()};
@@ -3815,42 +3904,45 @@ function fixAccountBalance(i,diff){
  openAccountModal();
  toast('已生成「余额校正」记录，账户已与流水对齐 ✓');
 }
-function calibrateAccount(i){
- const a=state.accounts[i]; if(!a)return;
- var flow=accountFlowSum(i);
+function calibrateAccount(acctId){
+ const a=state.accounts.find(x=>x.id===acctId); if(!a)return;
+ var flow=accountFlowSum(acctId);
  var diff=a.balance-flow;
  if(Math.abs(diff)>=0.005){
   confirmBox('校准前对账','账户「'+esc(a.name)+'」流水计算余额：'+fmtMoney(flow)+'，当前余额：'+fmtMoney(a.balance)+'，差异：'+(diff>=0?'+':'-')+fmtMoney(Math.abs(diff))+'。是否继续手动校准？',
-   '<div class="cb-row"><button class="btn-ghost" onclick="closeConfirm()">取消</button><button class="btn-primary" onclick="closeConfirm();openCalibrateInput('+i+')">继续校准</button></div>');
+   '<div class="cb-row"><button class="btn-ghost" onclick="closeConfirm()">取消</button><button class="btn-primary" onclick="closeConfirm();openCalibrateInput(\''+acctId+'\')">继续校准</button></div>');
   return;
  }
- openCalibrateInput(i);
+ openCalibrateInput(acctId);
 }
-function openCalibrateInput(i){
- const a=state.accounts[i]; if(!a)return;
+function openCalibrateInput(acctId){
+ const a=state.accounts.find(x=>x.id===acctId); if(!a)return;
  const m=document.getElementById('action-sheet');
  m.innerHTML='<div class="as-title">校准「'+esc(a.name)+'」余额</div>'+
   '<div class="form-group" style="padding:14px 4px 0"><label class="form-label">当前余额</label><input type="number" id="cal-bal" value="'+round2(a.balance)+'" inputmode="decimal" style="font-size:16px;width:100%"></div>'+
-  '<div class="cb-row" style="margin-top:18px"><button class="btn-ghost" onclick="closeActionSheet()">取消</button><button class="btn-primary" onclick="saveCalibrate('+i+')">保存</button></div>';
+  '<div class="cb-row" style="margin-top:18px"><button class="btn-ghost" onclick="closeActionSheet()">取消</button><button class="btn-primary" onclick="saveCalibrate(\''+acctId+'\')">保存</button></div>';
  document.getElementById('action-sheet-bg').classList.add('show');
  setTimeout(function(){const el=document.getElementById('cal-bal');if(el){el.focus();el.select&&el.select()}},80);
 }
-function saveCalibrate(i){
+function saveCalibrate(acctId){
  const val=parseFloat(document.getElementById('cal-bal').value);
  if(isNaN(val)){toast('请输入有效数字');return}
- state.accounts[i].balance=round2(val);
+ const a=state.accounts.find(x=>x.id===acctId); if(!a)return;
+ a.balance=round2(val);
  DB.set('accounts',state.accounts);
  closeActionSheet();
  openAccountModal();
  renderAccounting();
  toast('余额已校准');
 }
-function delAccount(i){
- if(state.records.some(r=>r.acct===state.accounts[i].id)){toast('该账户有记账记录，无法删除');return}
- confirmBox('删除账户','确定删除「'+state.accounts[i].name+'」？','<div class="cb-row"><button class="btn-ghost" onclick="closeConfirm()">取消</button><button class="btn-primary" style="background:var(--expense)" onclick="confirmDelAccount('+i+')">删除</button></div>');
+function delAccount(acctId){
+ var a=state.accounts.find(x=>x.id===acctId); if(!a)return;
+ if(state.records.some(r=>r.acct===a.id)){toast('该账户有记账记录，无法删除');return}
+ confirmBox('删除账户','确定删除「'+esc(a.name)+'」？','<div class="cb-row"><button class="btn-ghost" onclick="closeConfirm()">取消</button><button class="btn-primary" style="background:var(--expense)" onclick="confirmDelAccount(\''+acctId+'\')">删除</button></div>');
 }
-function confirmDelAccount(i){
- state.accounts.splice(i,1);
+function confirmDelAccount(acctId){
+ var idx=state.accounts.findIndex(x=>x.id===acctId); if(idx<0)return;
+ state.accounts.splice(idx,1);
  DB.set('accounts',state.accounts);
  closeConfirm();closeModal();renderAccounting();toast('已删除');
 }
@@ -3895,7 +3987,7 @@ function renderHabits(){ try{
     body+='<div class="wq-row">'+qs.map(q=>'<button class="wq-chip" onclick="addHabitVal(\''+h.id+'\','+q+')">+'+q+'ml</button>').join('')+'</div><div class="wq-row" style="margin-top:6px"><input type="number" id="wq-in-'+h.id+'" class="wq-input" placeholder="自定义毫升数" inputmode="numeric" min="1"><button class="wq-add" onclick="addCustomHabit(\''+h.id+'\')">添加</button></div>';
    }
   }
-  return '<div class="habit-card '+(done?'done':'')+' '+(isUrgent?'urgent':'')+'"><div class="habit-icon" style="background:'+h.color+'"><svg viewBox="0 0 24 24" fill="none" stroke-width="2">'+iconPath+'</svg></div><div class="habit-mid"><div class="hn">'+h.name+(h.minTarget?'<span class="micro-badge">微习惯</span>':'')+'</div><div class="habit-med"><span class="habit-streak">🔥 '+streak+'天</span><span>最佳 '+best+'天</span><span style="color:'+h.color+'">'+h.motto+'</span></div>'+(h.minTarget&&!done&&log.val===0?'<div class="mini-done">微习惯下限：'+h.minTarget+h.unit+'（完成即算打卡）</div>':'')+(h.minTarget&&minDone&&!done?'<div class="mini-done">✓ 微习惯下限已达标，可以打卡</div>':'')+(h.target>1?body:'')+'<div class="habit-actions"><button class="habit-act-btn" onclick="event.stopPropagation();openHabitModal(\''+h.id+'\')" title="编辑"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button><button class="habit-act-btn del" onclick="event.stopPropagation();deleteHabit(\''+h.id+'\')" title="删除"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/></svg></button></div></div>'+habitRightSlot(h,done,log,minDone)+'</div>';
+  return '<div class="habit-card '+(done?'done':'')+' '+(isUrgent?'urgent':'')+'"><div class="habit-icon" style="background:'+h.color+'"><svg viewBox="0 0 24 24" fill="none" stroke-width="2">'+iconPath+'</svg></div><div class="habit-mid"><div class="hn">'+hEsc(h.name)+(h.minTarget?'<span class="micro-badge">微习惯</span>':'')+'</div><div class="habit-med"><span class="habit-streak">🔥 '+streak+'天</span><span>最佳 '+best+'天</span><span style="color:'+h.color+'">'+hEsc(h.motto)+'</span></div>'+(h.minTarget&&!done&&log.val===0?'<div class="mini-done">微习惯下限：'+h.minTarget+h.unit+'（完成即算打卡）</div>':'')+(h.minTarget&&minDone&&!done?'<div class="mini-done">✓ 微习惯下限已达标，可以打卡</div>':'')+(h.target>1?body:'')+'<div class="habit-actions"><button class="habit-act-btn" onclick="event.stopPropagation();openHabitModal(\''+h.id+'\')" title="编辑"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button><button class="habit-act-btn del" onclick="event.stopPropagation();deleteHabit(\''+h.id+'\')" title="删除"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/></svg></button></div></div>'+habitRightSlot(h,done,log,minDone)+'</div>';
  }catch(e){ console.warn('[habit]',h&&h.id,e); return ''; }
  }).join('');
   document.getElementById('habit-list').innerHTML=html||'<div class="empty-state"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg><p>还没有习惯<br>点击右下角 + 创建</p></div>';
@@ -3989,7 +4081,7 @@ function addCustomHabit(id){
 }
 function promptHabitNote(id){
  const h=state.habits.find(x=>x.id===id);
- confirmBox('打卡成功！','「'+h.name+'」完成！写一句备注吧（可跳过）：',
+ confirmBox('打卡成功！','「'+esc(h.name)+'」完成！写一句备注吧（可跳过）：',
  '<input type="text" id="habit-note-input" placeholder="如：今天状态很好" style="margin-bottom:12px"><div class="cb-row"><button class="btn-ghost" onclick="closeConfirm()">跳过</button><button class="btn-primary" onclick="saveHabitNote(\''+id+'\')">保存</button></div>');
  setTimeout(()=>document.getElementById('habit-note-input')?.focus(),100);
 }
@@ -4360,7 +4452,7 @@ function deleteHabit(id){
  const h=state.habits.find(x=>x.id===id);
  if(!h)return;
  const streak=calcStreak(id);
- let warn='确定删除「'+h.name+'」？';
+ let warn='确定删除「'+esc(h.name)+'」？';
  if(streak>0)warn+='\\n当前连续打卡 '+streak+' 天，删除后打卡记录也会清除。';
  confirmBox('删除习惯',warn,
   '<div class="cb-row"><button class="btn-ghost" onclick="closeConfirm()">取消</button><button class="btn-danger" onclick="confirmDeleteHabit(\''+id+'\')">删除</button></div>');
@@ -5305,7 +5397,7 @@ function openSettings(){
  '<div class="form-group"><label class="form-label">导出备份</label><div style="display:flex;gap:8px"><select id="export-fmt" style="flex:1;min-height:44px;border:1px solid var(--border2);border-radius:10px;padding:0 10px;font-size:13px;background:var(--bg)"><option value="json">JSON 完整备份</option><option value="bills">账单 CSV</option><option value="media">书影音 CSV</option></select><button class="btn-ghost" onclick="doExportByFmt()" style="white-space:nowrap;min-height:44px">导出</button></div></div>'+
  '<div style="display:flex;gap:8px;margin-bottom:8px"><button class="btn-ghost" onclick="importBackup()" style="flex:1">📥 导入恢复</button><button class="btn-ghost" onclick="clearAllData()" style="flex:1;color:var(--expense);border-color:var(--expense)">清空所有数据</button></div>'+
  '<div id="backup-history"></div>'+
- '<div class="sec-title"><div class="left" style="color:#3B82C4">数据同步</div><span style="font-size:10px;background:#E60012;color:#fff;padding:2px 8px;border-radius:6px;font-weight:700">v50</span></div>'
+ '<div class="sec-title"><div class="left" style="color:#3B82C4">数据同步</div><span style="font-size:10px;background:#E60012;color:#fff;padding:2px 8px;border-radius:6px;font-weight:700">v51</span></div>'
 +'<div class="card-tight card mb8" style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:13px">连服务器自动同步（手机电脑共享）</span><button class="btn-ghost" id="supa-on-btn" onclick="supaToggleOn()" style="font-size:12px;padding:6px 14px;min-height:34px">'+(DB.get('sync_on',false)?'已开启':'已关闭')+'</button></div>'
 +'<div class="form-group"><label class="form-label">Supabase 项目 URL</label><input type="text" id="sync-url" value="'+hEsc(DB.get('sync_url','https://zmlkhnhjqcpzhywrgtiw.supabase.co'))+'" placeholder="https://xxxx.supabase.co"></div>'
 +'<div class="form-group"><label class="form-label">anon / public key</label><input type="text" id="sync-key" value="'+hEsc(DB.get('sync_key','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InptbGtobmhqcWNwemh5d3JndGl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYxMjY2NjcsImV4cCI6MjEwMTcwMjY2N30.hZnlONauB0y20wMEF7OG5kRn2uR2PCvcVEfrAE9FoVI'))+'" placeholder="eyJhbGciOi... 或 sb_publishable_..."></div>'
