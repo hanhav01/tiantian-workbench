@@ -2355,10 +2355,46 @@ function migrateData(){
  if(Array.isArray(state.accounts)) state.accounts.forEach(a=>{
   if(a&&typeof a.balance==='number'){ const c=round2(a.balance); if(c!==a.balance){a.balance=c;changed=true} }
  });
+ // v56 积分日志去重与裁剪：条目原先不带 id，而同步合并 `_mergeArrays` 对无 id 项是"无条件追加"，
+ // 每次同步都会叠加一份（实测已膨胀到 2800 条 / 193KB）。现按 (ts|delta|reason) 指纹去重，只留最近 300 条。
+ (function(){
+  const log=Array.isArray(state.pointsLog)?state.pointsLog:[];
+  if(!log.length)return;
+  const seen={},out=[];
+  for(let i=log.length-1;i>=0;i--){
+   const e=log[i]; if(!e)continue;
+   const key=(e.ts||0)+'|'+(e.delta||0)+'|'+(e.reason||'');
+   if(seen[key])continue;
+   seen[key]=1; out.unshift(e);
+  }
+  const fin=out.length>300?out.slice(-300):out;
+  if(fin.length!==log.length){ state.pointsLog=fin; changed=true; }
+ })();
+ // v56 合并重复的「学日语」习惯（同步竞态/重复创建会生成多条 h-jp- 前缀习惯），打卡记录一并归并
+ (function(){
+  const list=Array.isArray(state.habits)?state.habits:[];
+  const jp=list.filter(function(h){return h&&h.id&&String(h.id).indexOf('h-jp-')===0;});
+  if(jp.length<=1)return;
+  const keep=jp[0];
+  const hl=state.habitLogs||{};
+  jp.slice(1).forEach(function(h){
+   Object.keys(hl).forEach(function(d){
+    const day=hl[d]; if(!day||!day[h.id])return;
+    if(!day[keep.id]||((day[h.id].val||0)>(day[keep.id].val||0)))day[keep.id]=day[h.id];
+    delete day[h.id];
+   });
+  });
+  const drop={}; jp.slice(1).forEach(function(h){drop[h.id]=1;});
+  state.habits=list.filter(function(h){return !drop[h.id];});
+  changed=true;
+ })();
  if(changed){
   DB.set('shopping',state.shopping);
   DB.set('records',state.records);
   DB.set('accounts',state.accounts);
+  DB.set('pointsLog',state.pointsLog);  // v56
+  DB.set('habits',state.habits);         // v56
+  DB.set('habitLogs',state.habitLogs);   // v56
  }
 }
 // ============ 状态兜底（兼容旧版/损坏的 localStorage，避免整页脚本崩溃） ============
@@ -2397,8 +2433,8 @@ function addPoints(delta,reason){
  const prev=state.points;
  state.points=Math.max(0,state.points+delta);
  const applied=state.points-prev; // v51 实际生效的变动（封底时 |applied|<|delta|）
- state.pointsLog.push({delta,reason,ts:Date.now(),balance:state.points});
- if(state.pointsLog.length>200)state.pointsLog=state.pointsLog.slice(-200);
+ state.pointsLog.push({id:uid(),delta,reason,ts:Date.now(),balance:state.points}); // v56 带 id，同步合并才能按 id 去重
+ if(state.pointsLog.length>300)state.pointsLog=state.pointsLog.slice(-300);
  DB.set('points',state.points);
  DB.set('pointsLog',state.pointsLog);
  renderPointsDisplay();
@@ -5475,15 +5511,46 @@ function openAbout(){
 }
 
 // ============ Export / Import ============
+// v56 备份/恢复的完整键清单。
+// 旧版把 19 个键硬编码在 exportData 里，导致 v41 之后新增的日语课、奖状墙、小新学习搭子、
+// 任务看板、工作记录、奖励商城、记账偏好等全部漏出备份——换设备恢复即丢数据。
+// ★ 今后新增任何持久化数据键，都必须在下面补一行（导出与导入共用这一份清单，避免再次脱节）。
+const BACKUP_KEYS=[
+ // 账本
+ 'accounts','records',
+ // 习惯
+ 'habits','habitLogs','flowerBadges',
+ // 日语课 / 小新学习搭子
+ 'japanese','studyBuddy',
+ // 购物 / 探店 / 饮食
+ 'shopping','explores','foodLogs','customFoods',
+ // 书影音
+ 'media','mediaCache',
+ // 任务 / 工作
+ 'tasks','contactTags','workProjects','workRecords','workFilter',
+ // 积分 / 奖励 / 奖状
+ 'points','pointsLog','rewards','redeems','certificates',
+ // 纪念日
+ 'anniv','annivCustom','mineAnniv','anniv_init',
+ // 设置 / 偏好
+ 'settings','recPref','recTemplates','usageStats',
+ 'waterTimes','waterRemindOn',
+ // 状态标量
+ 'noImpulseStreak','lastNoImpulseDate','lastHabitPointsDate','lastInteraction','shinAwayUntil',
+ // 标记（避免恢复后又灌演示数据）
+ 'cleared'
+];
+function backupSnapshot(){
+ const data={version:4,exportDate:new Date().toISOString()};
+ BACKUP_KEYS.forEach(function(k){
+  let v=null;
+  try{ v=(state[k]!==undefined)?state[k]:DB.get(k,null); }catch(e){ v=null; }
+  if(v!==undefined&&v!==null)data[k]=v;
+ });
+ return data;
+}
 function exportData(){
- const data={version:3,exportDate:new Date().toISOString(),
-  records:state.records,accounts:state.accounts,habits:state.habits,
-  habitLogs:state.habitLogs,shopping:state.shopping,explores:state.explores,
-  media:state.media,mediaCache:state.mediaCache,
-  foodLogs:state.foodLogs,customFoods:state.customFoods,settings:state.settings,
-  points:state.points,pointsLog:state.pointsLog,noImpulseStreak:state.noImpulseStreak,
-  lastNoImpulseDate:state.lastNoImpulseDate,lastHabitPointsDate:state.lastHabitPointsDate,
-  lastInteraction:state.lastInteraction,shinAwayUntil:state.shinAwayUntil,anniv:getAnniv()};
+ const data=backupSnapshot();
  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
  const url=URL.createObjectURL(blob);
  const a=document.createElement('a');
@@ -5498,7 +5565,7 @@ function exportData(){
   bks.sort();
   while(bks.length>20){ localStorage.removeItem(bks.shift()); }
  }catch(e){console.warn('[backup]',e);}
- toast('已导出备份文件');
+ toast('已导出完整备份（'+Object.keys(data).length+' 项）');
  if(document.getElementById('backup-history'))renderBackupHistory();
 }
 function importData(e){
@@ -5509,8 +5576,12 @@ function importData(e){
   try{
    const data=JSON.parse(ev.target.result);
    if(!data.version){toast('文件格式不正确');return}
+   const known=BACKUP_KEYS.filter(function(k){return Object.prototype.hasOwnProperty.call(data,k);}).length;
+   const miss=BACKUP_KEYS.length-known;
    confirmBox('导入数据','将覆盖当前所有数据，确定导入？',
-    '<div class="small mb12">备份时间：'+(data.exportDate||'未知')+'<br>记账：'+(data.records||[]).length+'条<br>习惯：'+(data.habits||[]).length+'个<br>购物：'+(data.shopping||[]).length+'项<br>探店：'+(data.explores||[]).length+'条<br>书影音：'+(data.media||[]).length+'条<br>纪念日：'+(data.anniv||[]).length+'个<br>零花钱积分：'+(data.points||1000)+'</div><div class="cb-row"><button class="btn-ghost" onclick="closeConfirm()">取消</button><button class="btn-primary" onclick="doImport()">确认导入</button></div>');
+    '<div class="small mb12">备份时间：'+(data.exportDate||'未知')+'<br>备份版本：v'+(data.version||'?')+'（含 '+known+'/'+BACKUP_KEYS.length+' 项）<br>记账：'+((data.records||[]).length)+'条<br>习惯：'+((data.habits||[]).length)+'个 · 打卡 '+Object.keys(data.habitLogs||{}).length+' 天<br>购物：'+((data.shopping||[]).length)+'项<br>书影音：'+((data.media||[]).length)+'条<br>积分：'+(data.points!==undefined?data.points:1000)+
+     (miss>0?'<br><span style="color:#E65100">⚠️ 这是旧版本备份，缺少 '+miss+' 项（日语课/奖状等），导入时这些将保留当前数据不被清空</span>':'')+
+     '</div><div class="cb-row"><button class="btn-ghost" onclick="closeConfirm()">取消</button><button class="btn-primary" onclick="doImport()">确认导入</button></div>');
    window._importData=data;
   }catch(err){toast('文件解析失败：'+err.message)}
  };
@@ -5518,36 +5589,30 @@ function importData(e){
  e.target.value='';
 }
 function doImport(){
- const d=window._importData;
- state.records=d.records||[];state.accounts=d.accounts||DEFAULT_ACCTS;
- state.habits=d.habits||DEFAULT_HABITS;state.habitLogs=d.habitLogs||{};
- state.shopping=d.shopping||[];state.explores=d.explores||[];
- state.foodLogs=d.foodLogs||[];state.customFoods=d.customFoods||[];
- state.media=d.media||[];state.mediaCache=d.mediaCache||null;
- state.settings=d.settings||{mediaGoal:4,filterCat:'',nonEssLimit:500,privacyOn:false};
- if(!state.settings.mediaGoal)state.settings.mediaGoal=4;
- state.points=d.points!==undefined?d.points:1000;
- state.pointsLog=d.pointsLog||[];
- state.noImpulseStreak=d.noImpulseStreak||0;
- state.lastNoImpulseDate=d.lastNoImpulseDate||'';
- state.lastHabitPointsDate=d.lastHabitPointsDate||'';
- state.lastInteraction=d.lastInteraction||Date.now();
- state.shinAwayUntil=d.shinAwayUntil||0;
- if(!state.settings.nonEssLimit)state.settings.nonEssLimit=500;
- if(!state.settings.privacyOn)state.settings.privacyOn=false;
+ const d=window._importData; if(!d)return;
+ // v56 只覆盖备份里真实存在的键：旧版备份缺少的键（日语课/奖状/搭子…）保留当前数据，绝不清空
+ let restored=0, kept=[];
+ BACKUP_KEYS.forEach(function(k){
+  if(!Object.prototype.hasOwnProperty.call(d,k)||d[k]===undefined){ kept.push(k); return; }
+  if(Object.prototype.hasOwnProperty.call(state,k))state[k]=d[k];
+  else DB.set(k,d[k]); // 仅存 DB 的键（anniv / rewards / anniv_init …）
+  restored++;
+ });
+ // 兜底默认值
+ if(!Array.isArray(state.accounts)||!state.accounts.length)state.accounts=DEFAULT_ACCTS;
+ if(!state.habits)state.habits=DEFAULT_HABITS;
+ if(!state.habitLogs)state.habitLogs={};
+ if(!state.settings)state.settings={mediaGoal:4,filterCat:'',nonEssLimit:500,privacyOn:false};
+ if(state.settings.mediaGoal===undefined)state.settings.mediaGoal=4;
+ if(state.settings.nonEssLimit===undefined)state.settings.nonEssLimit=500;
+ if(state.settings.privacyOn===undefined)state.settings.privacyOn=false;
+ if(state.points===undefined)state.points=1000;
  migrateData();
- DB.set('records',state.records);DB.set('accounts',state.accounts);
- DB.set('habits',state.habits);DB.set('habitLogs',state.habitLogs);
- DB.set('shopping',state.shopping);DB.set('explores',state.explores);
- DB.set('foodLogs',state.foodLogs);DB.set('customFoods',state.customFoods);
-DB.set('media',state.media);DB.set('mediaCache',state.mediaCache);DB.set('anniv',d.anniv||[]);
- DB.set('settings',state.settings);
- DB.set('points',state.points);DB.set('pointsLog',state.pointsLog);
- DB.set('noImpulseStreak',state.noImpulseStreak);
- DB.set('lastNoImpulseDate',state.lastNoImpulseDate);
- DB.set('lastHabitPointsDate',state.lastHabitPointsDate);
+ // 统一落盘（state 型键）
+ BACKUP_KEYS.forEach(function(k){ if(Object.prototype.hasOwnProperty.call(state,k))DB.set(k,state[k]); });
+ window._importData=null;
  closeConfirm();applyPrivacy();renderTab(state.tab);renderToday();checkBackupHint();
- toast('导入成功！');
+ toast('导入成功！恢复 '+restored+' 项'+(kept.length?('，保留当前 '+kept.length+' 项'):''));
 }
 
 // ============ 历史备份（时间机器） ============
@@ -5600,7 +5665,7 @@ function openSettings(){
  '<div class="form-group"><label class="form-label">导出备份</label><div style="display:flex;gap:8px"><select id="export-fmt" style="flex:1;min-height:44px;border:1px solid var(--border2);border-radius:10px;padding:0 10px;font-size:13px;background:var(--bg)"><option value="json">JSON 完整备份</option><option value="bills">账单 CSV</option><option value="media">书影音 CSV</option></select><button class="btn-ghost" onclick="doExportByFmt()" style="white-space:nowrap;min-height:44px">导出</button></div></div>'+
  '<div style="display:flex;gap:8px;margin-bottom:8px"><button class="btn-ghost" onclick="importBackup()" style="flex:1">📥 导入恢复</button><button class="btn-ghost" onclick="clearAllData()" style="flex:1;color:var(--expense);border-color:var(--expense)">清空所有数据</button></div>'+
  '<div id="backup-history"></div>'+
- '<div class="sec-title"><div class="left" style="color:#3B82C4">数据同步</div><span style="font-size:10px;background:#E60012;color:#fff;padding:2px 8px;border-radius:6px;font-weight:700">v55</span></div>'
+ '<div class="sec-title"><div class="left" style="color:#3B82C4">数据同步</div><span style="font-size:10px;background:#E60012;color:#fff;padding:2px 8px;border-radius:6px;font-weight:700">v56</span></div>'
 +'<div class="card-tight card mb8" style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:13px">连服务器自动同步（手机电脑共享）</span><button class="btn-ghost" id="supa-on-btn" onclick="supaToggleOn()" style="font-size:12px;padding:6px 14px;min-height:34px">'+(DB.get('sync_on',false)?'已开启':'已关闭')+'</button></div>'
 +'<div class="form-group"><label class="form-label">Supabase 项目 URL</label><input type="text" id="sync-url" value="'+hEsc(DB.get('sync_url','https://zmlkhnhjqcpzhywrgtiw.supabase.co'))+'" placeholder="https://xxxx.supabase.co"></div>'
 +'<div class="form-group"><label class="form-label">anon / public key</label><input type="text" id="sync-key" value="'+hEsc(DB.get('sync_key','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InptbGtobmhqcWNwemh5d3JndGl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYxMjY2NjcsImV4cCI6MjEwMTcwMjY2N30.hZnlONauB0y20wMEF7OG5kRn2uR2PCvcVEfrAE9FoVI'))+'" placeholder="eyJhbGciOi... 或 sb_publishable_..."></div>'
@@ -6373,6 +6438,17 @@ function createJapaneseHabit(){
  try{
   closeConfirm();
   const today=todayStr();
+  // v56 防重复：已有同名习惯则只打卡，不再新建（原来靠 linkJapaneseHabit 的 find 判断，
+  // 但同步竞态下两台设备会各建一条，产生重复的「学日语」）
+  const exist=(state.habits||[]).find(function(h){return h.name==='学日语';});
+  if(exist){
+   state.habitLogs[today]=state.habitLogs[today]||{};
+   state.habitLogs[today][exist.id]={val:1, note:'日语学习：打卡', t:Date.now(), dur:0};
+   DB.set('habitLogs', state.habitLogs);
+   renderHabits(); renderToday(); renderJapanese();
+   toast('「学日语」习惯已存在，已为你打卡 ✓');
+   return;
+  }
   const habit={id:'h-jp-'+Date.now().toString(36), name:'学日语', icon:'lang', color:'#E8703A', target:1, unit:'次', freq:'daily', motto:'每日一句，积少成多'};
   state.habits=state.habits||[]; state.habits.push(habit);
   DB.set('habits', state.habits);
@@ -7445,11 +7521,23 @@ function _localPkgFull(){ return _parsePkg(collectSyncData()); }
 function _stringifyPkg(obj){ var o={}; Object.keys(obj||{}).forEach(function(k){ if(k.charAt(0)==='_')return; try{o[k]=JSON.stringify(obj[k]);}catch(e){o[k]=String(obj[k]);} }); return o; }
 function _parseLocal(){ var o={}; Object.keys(SYNC_WHITELIST).forEach(function(k){ var raw=localStorage.getItem(PREFIX+k); if(raw==null)return; var v=raw; try{v=JSON.parse(raw);}catch(e){} o[k]=v; }); return o; }
 function _recTs(o){ if(!o||typeof o!=='object')return 0; var t=o.ts||o.updatedAt||o._ts||o.t||o.time||o.created||o.doneTime||o.completedAt||0; return Number(t)||0; }
+// v56 内容指纹：用于给"没有 id 的数组项"去重（键排序保证同一对象得到同一指纹）
+function _fp(x){
+ try{
+  if(x===null||x===undefined)return String(x);
+  if(typeof x!=='object')return typeof x+':'+String(x);
+  return '{'+Object.keys(x).sort().map(function(k){return k+':'+JSON.stringify(x[k]);}).join(',')+'}';
+ }catch(e){ return 'fb:'+Math.random(); }
+}
 function _mergeArrays(a,b){
- var map={}, order=[];
- (a||[]).forEach(function(x){ if(x&&x.id!=null){ if(!(x.id in map))order.push(x.id); map[x.id]=x; } else { var rk='_r'+(order.length); order.push(rk); map[rk]=x; } });
+ var map={}, order=[], seen={};
+ // v56 无 id 项按内容指纹去重：原实现是"无条件追加"，导致 pointsLog 这类无 id 数组每次同步都叠加一份
+ (a||[]).forEach(function(x){
+  if(x&&x.id!=null){ if(!(x.id in map))order.push(x.id); map[x.id]=x; }
+  else { var f=_fp(x); if(f in seen)return; seen[f]=1; var rk='_r'+(order.length); order.push(rk); map[rk]=x; }
+ });
  (b||[]).forEach(function(x){
-   if(!x||x.id==null){ var rk2='_r'+(order.length); order.push(rk2); map[rk2]=x; return; }
+   if(!x||x.id==null){ var f2=_fp(x); if(f2 in seen)return; seen[f2]=1; var rk2='_r'+(order.length); order.push(rk2); map[rk2]=x; return; }
    if(x.id in map){ var ex=map[x.id]; var ta=_recTs(x), tb=_recTs(ex); map[x.id]=(ta&&tb)?(ta>=tb?x:ex):(ta?x:(tb?ex:x)); }
    else { order.push(x.id); map[x.id]=x; }
  });
