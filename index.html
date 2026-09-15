@@ -2298,6 +2298,7 @@ let state={
  studyBuddy:DB.get('studyBuddy',null),
  contactTags:DB.get('contactTags',[]),
  workFilter:DB.get('workFilter','all'),
+ recPref:DB.get('recPref',null), // v53 记账偏好记忆（上次的类型/分类/标签）
 };
 
 if(!Array.isArray(state.accounts)||state.accounts.length===0){state.accounts=DEFAULT_ACCTS;DB.set('accounts',state.accounts)}
@@ -3442,16 +3443,30 @@ function renderAccounting(){
  if(billView==='analysis'){ updateBillAnalysisTitle(); renderBillPie(); renderBillBar(); renderBillTop3(); }
 }
 
+// v53 记账默认账户：优先「储蓄卡」（用户习惯——日常记账默认走储蓄卡，而非列表里的第一个现金账户）
+function defaultAcctId(){
+ const list=state.accounts||[];
+ if(!list.length)return '';
+ const hit=list.find(a=>a.type==='debit')
+  || list.find(a=>/储蓄卡/.test(a.name||''))
+  || list.find(a=>/储蓄/.test(a.name||'')&&!/信用/.test(a.name||''))
+  || list.find(a=>/卡/.test(a.name||'')&&!/信用/.test(a.name||''))
+  || list[0];
+ return hit?hit.id:'';
+}
 function openRecordModal(prefill){
  if(prefill&&prefill.id)window._editRecId=prefill.id; else window._editRecId=null; // 显式重置编辑态，避免残留导致新记录被误当成编辑
  const night=isNight();
- const accts=state.accounts.map(a=>'<div class="cat-btn '+(prefill&&prefill.acct===a.id?'active':'')+'" data-acct="'+a.id+'">'+(a.icon||'')+'<span>'+hEsc(a.name)+'</span></div>').join('');
  const m=document.getElementById('modal');
+ const _pf=(!prefill&&state.recPref)?state.recPref:null; // v53 记忆上次的分类/标签
+ const _pfExp=(_pf&&_pf.type==='expense')?_pf:null;
  let curType=prefill?.type||'expense';
- let curCat=prefill?.cat||'';
- let curSub=prefill?.sub||'';
- let curAcct=prefill?.acct||state.accounts[0].id;
- let curTags=prefill?.tags||[];
+ let curCat=prefill?.cat||_pfExp?.cat||'';
+ let curSub=prefill?.sub||_pfExp?.sub||'';
+ let curTags=(prefill?.tags||_pfExp?.tags||[]).slice();
+ if(curType==='transfer')curTags=[]; // 转账不参与冲动标签
+ let curAcct=prefill?.acct||defaultAcctId()||state.accounts[0].id; // v53 默认走储蓄卡（而非列表第一个）
+ const accts=state.accounts.map(a=>'<div class="cat-btn '+(curAcct===a.id?'active':'')+'" data-acct="'+a.id+'">'+(a.icon||'')+'<span>'+hEsc(a.name)+'</span></div>').join('');
  let curAmt=(prefill&&prefill.amount!=null)?round2(prefill.amount):'';
  let curNote=prefill?.note||'';
  let nightHtml='';
@@ -3473,6 +3488,7 @@ function openRecordModal(prefill){
  openModal();
  renderCatGrid(curType,curCat,curSub);
  bindRecEvents();
+ const _ta=document.getElementById('tag-area'); if(_ta)_ta.style.display=curType==='transfer'?'none':''; // 转账不显示冲动标签
  renderAcctToSelector((prefill&&prefill.acctTo)||'', !!(prefill&&prefill.type==='transfer'&&!prefill.acctTo));
  renderRecShopSelector(prefill&&prefill.shopItemId);
  // Live loss equiv on amount change
@@ -3609,7 +3625,7 @@ function saveRecord(){
  const date=document.getElementById('rec-date').value||todayStr();
  const cat=catEl?.dataset.cat||'其他';
  const sub=subEl?.dataset.sub||'';
- const acct=acctEl?.dataset.acct||state.accounts[0].id;
+ const acct=acctEl?.dataset.acct||defaultAcctId()||state.accounts[0].id; // v53 兜底走储蓄卡
  // v51 转账：读取转入账户
  const acctToEl=document.querySelector('#rec-acct-to .cat-btn.active');
  var acctTo=(t==='transfer'&&acctToEl)?acctToEl.dataset.acct:null;
@@ -3672,6 +3688,8 @@ function saveRecord(){
  const rec={id:uid(),type:t,cat,sub,amount:amt,acct,tags,note,date,ts:Date.now()};
  if(t==='transfer')rec.acctTo=acctTo;
  try{ addRecord(rec); }catch(e){ console.warn('[addRecord]',e); }
+ // v53 记住本次类型/分类/标签，下次记账自动预选（高频记账少点几下）
+ state.recPref={type:t,cat,sub,tags:(tags||[]).slice()}; DB.set('recPref',state.recPref);
  var _selId=document.getElementById('rec-shop')?.value||'';
  if(_selId){ rec.shopItemId=_selId; syncRecShop(rec,_selId); DB.set('records',state.records); renderAccounting(); }
  closeModal();
@@ -5410,7 +5428,7 @@ function openSettings(){
  '<div class="form-group"><label class="form-label">导出备份</label><div style="display:flex;gap:8px"><select id="export-fmt" style="flex:1;min-height:44px;border:1px solid var(--border2);border-radius:10px;padding:0 10px;font-size:13px;background:var(--bg)"><option value="json">JSON 完整备份</option><option value="bills">账单 CSV</option><option value="media">书影音 CSV</option></select><button class="btn-ghost" onclick="doExportByFmt()" style="white-space:nowrap;min-height:44px">导出</button></div></div>'+
  '<div style="display:flex;gap:8px;margin-bottom:8px"><button class="btn-ghost" onclick="importBackup()" style="flex:1">📥 导入恢复</button><button class="btn-ghost" onclick="clearAllData()" style="flex:1;color:var(--expense);border-color:var(--expense)">清空所有数据</button></div>'+
  '<div id="backup-history"></div>'+
- '<div class="sec-title"><div class="left" style="color:#3B82C4">数据同步</div><span style="font-size:10px;background:#E60012;color:#fff;padding:2px 8px;border-radius:6px;font-weight:700">v52</span></div>'
+ '<div class="sec-title"><div class="left" style="color:#3B82C4">数据同步</div><span style="font-size:10px;background:#E60012;color:#fff;padding:2px 8px;border-radius:6px;font-weight:700">v53</span></div>'
 +'<div class="card-tight card mb8" style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:13px">连服务器自动同步（手机电脑共享）</span><button class="btn-ghost" id="supa-on-btn" onclick="supaToggleOn()" style="font-size:12px;padding:6px 14px;min-height:34px">'+(DB.get('sync_on',false)?'已开启':'已关闭')+'</button></div>'
 +'<div class="form-group"><label class="form-label">Supabase 项目 URL</label><input type="text" id="sync-url" value="'+hEsc(DB.get('sync_url','https://zmlkhnhjqcpzhywrgtiw.supabase.co'))+'" placeholder="https://xxxx.supabase.co"></div>'
 +'<div class="form-group"><label class="form-label">anon / public key</label><input type="text" id="sync-key" value="'+hEsc(DB.get('sync_key','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InptbGtobmhqcWNwemh5d3JndGl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYxMjY2NjcsImV4cCI6MjEwMTcwMjY2N30.hZnlONauB0y20wMEF7OG5kRn2uR2PCvcVEfrAE9FoVI'))+'" placeholder="eyJhbGciOi... 或 sb_publishable_..."></div>'
@@ -6195,8 +6213,14 @@ function createJapaneseHabit(){
 }
 
 function init(){
+ // v53 加固：演示数据只在"真正首装"注入一次。
+ // 旧逻辑仅凭"当前三类数据为空"判断——用户删光记账/清单/探索，或新设备在云端同步拉取之前打开，
+ // 都会被重新灌入示例数据，污染真实账本。现要求：未注入过(seeded) 且 用户没清过数据(cleared) 且 未配置云同步(sync_url)。
+ const _seeded=DB.get('seeded',false);
+ const _blockDemo=_seeded||DB.get('cleared',false)||!!DB.get('sync_url','');
  const isFirstTime=state.records.length===0&&state.shopping.length===0&&state.explores.length===0;
- if(isFirstTime&&!DB.get('cleared')){ try{ loadDemoData(); }catch(e){ console.warn('[loadDemo]',e); } }
+ if(isFirstTime&&!_blockDemo){ try{ loadDemoData(); }catch(e){ console.warn('[loadDemo]',e); } }
+ DB.set('seeded',true);
  applyNightMode();
  applyPrivacy();
  recommendMedia();
@@ -7081,6 +7105,7 @@ var SYNC_WHITELIST={
   japanese:{cap:0},          // 日语课（小，全量同步）
   habitLogs:{cap:200},       // 打卡日志（截断，v32.5 加回）
   settings:{cap:0},          // 设置（小）
+  recPref:{cap:0},           // 记账偏好记忆（类型/分类/标签，小）
   points:{cap:0},            // 积分（小）
   pointsLog:{cap:200},       // 积分日志（截断）
   rewards:{cap:0},           // 奖励商城（小）
