@@ -3473,7 +3473,7 @@ function openRecordModal(prefill){
  openModal();
  renderCatGrid(curType,curCat,curSub);
  bindRecEvents();
- renderAcctToSelector(prefill&&prefill.acctTo);
+ renderAcctToSelector((prefill&&prefill.acctTo)||'', !!(prefill&&prefill.type==='transfer'&&!prefill.acctTo));
  renderRecShopSelector(prefill&&prefill.shopItemId);
  // Live loss equiv on amount change
  const amtInput=document.getElementById('rec-amt');
@@ -3553,7 +3553,7 @@ function renderCatGrid(type,selCat,selSub){
   b.classList.add('active');
  });
 }
-function renderAcctToSelector(selToId){
+function renderAcctToSelector(selToId,legacy){
  var area=document.getElementById('rec-acct-to-area'); if(!area)return;
  var curType=document.querySelector('.type-tab.active')?.textContent.trim();
  if(curType!=='转账'){ area.style.display='none'; area.innerHTML=''; return; }
@@ -3562,12 +3562,12 @@ function renderAcctToSelector(selToId){
  var cands=state.accounts.filter(function(a){return a.id!==srcId;});
  if(selToId&&srcId===selToId)selToId=''; // 源账户切换后原目标失效
  if(selToId&&!cands.some(function(a){return a.id===selToId;}))selToId='';
- if(!selToId&&cands.length)selToId=cands[0].id; // 默认选中第一个候选
+ if(!selToId&&!legacy&&cands.length)selToId=cands[0].id; // 默认选中第一个候选（旧转账不强选，需用户显式确认）
  var html='<label class="form-label">转入账户</label><div class="cat-grid" id="rec-acct-to">';
  cands.forEach(function(a){
   html+='<div class="cat-btn '+(selToId===a.id?'active':'')+'" data-acct="'+a.id+'">'+(a.icon||'')+'<span>'+hEsc(a.name)+'</span></div>';
  });
- html+='</div><div class="small mt8">从上面的账户转出，转入到这里（双边余额都会变动）。</div>';
+ html+='</div><div class="small mt8"'+(legacy?' style="color:#E65100"':'')+'>'+(legacy?'⚠️ 这是旧版本记的转账，当时未联动余额。请确认转入账户——保存后会从转出账户扣款、并转入此账户。':'从上面的账户转出，转入到这里（双边余额都会变动）。')+'</div>';
  area.innerHTML=html;
  area.querySelectorAll('.cat-btn').forEach(function(b){ b.onclick=function(){ area.querySelectorAll('.cat-btn').forEach(function(x){x.classList.remove('active')}); b.classList.add('active'); }; });
 }
@@ -3624,7 +3624,7 @@ function saveRecord(){
   if(oldAcct){
    if(old.type==='expense')oldAcct.balance=round2(oldAcct.balance+old.amount);
    else if(old.type==='income')oldAcct.balance=round2(oldAcct.balance-old.amount);
-   else if(old.type==='transfer'){ // v51 回滚旧转账双边
+   else if(old.type==='transfer'&&old.acctTo){ // v51 回滚旧转账双边（旧转账无 acctTo 时未动过余额，不能回滚）
     oldAcct.balance=round2(oldAcct.balance+old.amount);
     var oldTo=state.accounts.find(a=>a.id===old.acctTo);
     if(oldTo&&oldTo.id!==old.acct)oldTo.balance=round2(oldTo.balance-old.amount);
@@ -3637,7 +3637,7 @@ function saveRecord(){
   if(na){
    if(t==='expense')na.balance=round2(na.balance-amt);
    else if(t==='income')na.balance=round2(na.balance+amt);
-   else if(t==='transfer'){ // v51 应用新转账双边
+   else if(t==='transfer'&&acctTo){ // v51 应用新转账双边
     na.balance=round2(na.balance-amt);
     var nTo=state.accounts.find(a=>a.id===acctTo);
     if(nTo&&nTo.id!==acct)nTo.balance=round2(nTo.balance+amt);
@@ -3733,7 +3733,7 @@ function addRecord(rec){
  if(acct){
   if(rec.type==='expense')acct.balance=round2(acct.balance-rec.amount);
   else if(rec.type==='income')acct.balance=round2(acct.balance+rec.amount);
-  else if(rec.type==='transfer'){ // v51 转账双边动账：转出减、转入加
+  else if(rec.type==='transfer'&&rec.acctTo){ // v51 转账双边动账：转出减、转入加（无 acctTo 的旧转账不动余额）
    acct.balance=round2(acct.balance-rec.amount);
    const to=state.accounts.find(a=>a.id===rec.acctTo);
    if(to&&to.id!==rec.acct)to.balance=round2(to.balance+rec.amount);
@@ -3784,7 +3784,7 @@ function confirmDelRecord(id){
  if(acct){
   if(rec.type==='expense')acct.balance=round2(acct.balance+rec.amount);
   else if(rec.type==='income')acct.balance=round2(acct.balance-rec.amount);
-  else if(rec.type==='transfer'){ // v51 回滚转账双边
+  else if(rec.type==='transfer'&&rec.acctTo){ // v51 回滚转账双边（旧转账无 acctTo，当时未动余额，不回滚）
    acct.balance=round2(acct.balance+rec.amount);
    const to=state.accounts.find(a=>a.id===rec.acctTo);
    if(to&&to.id!==rec.acct)to.balance=round2(to.balance-rec.amount);
@@ -3861,8 +3861,14 @@ function addAccount(){
  const name=document.getElementById('new-acct-name').value.trim();
  if(!name){toast('请输入账户名称');return}
  const icon=document.querySelector('#new-acct-icons .cat-btn.active')?.dataset.icon||'💵';
- const bal=parseFloat(document.getElementById('new-acct-bal').value)||0;
- state.accounts.push({id:uid(),name,icon,type:'custom',balance:bal});
+ const bal=round2(parseFloat(document.getElementById('new-acct-bal').value)||0);
+ var nid=uid();
+ state.accounts.push({id:nid,name,icon,type:'custom',balance:bal});
+ // v52：初始余额生成一条"期初余额"流水，让 余额==Σ流水 从一开始就成立（否则每次对账都报差异）
+ if(Math.abs(bal)>=0.005){
+  state.records.push({id:uid(),type:'income',cat:'其他',sub:'期初余额',amount:Math.abs(bal),acct:nid,tags:[],note:name+' 期初余额',date:todayStr(),ts:Date.now()});
+  DB.set('records',state.records);
+ }
  DB.set('accounts',state.accounts);
  closeModal();renderAccounting();toast('账户已添加');
 }
@@ -3872,7 +3878,7 @@ function accountFlowSum(acctId){
   if(r.acct===acctId){
    if(r.type==='income')sum+=r.amount;
    else if(r.type==='expense')sum-=r.amount;
-   else if(r.type==='transfer')sum-=r.amount; // v51 转出计减
+   else if(r.type==='transfer'&&r.acctTo)sum-=r.amount; // v51 转出计减（旧转账无 acctTo，未动余额，不计入）
   }else if(r.type==='transfer'&&r.acctTo===acctId){ sum+=r.amount; } // v51 转入计加
  });
  return round2(sum);
@@ -3928,12 +3934,19 @@ function saveCalibrate(acctId){
  const val=parseFloat(document.getElementById('cal-bal').value);
  if(isNaN(val)){toast('请输入有效数字');return}
  const a=state.accounts.find(x=>x.id===acctId); if(!a)return;
- a.balance=round2(val);
+ var nv=round2(val);
+ var flow=accountFlowSum(acctId);
+ var gap=round2(nv-flow); // v52：校准同时补平流水，否则"校准完对账依然报差异"
+ a.balance=nv;
  DB.set('accounts',state.accounts);
+ if(Math.abs(gap)>=0.005){
+  state.records.push({id:uid(),type:gap>0?'income':'expense',cat:'其他',sub:'余额校准',amount:round2(Math.abs(gap)),acct:a.id,tags:[],note:'账户余额校准',date:todayStr(),ts:Date.now()});
+  DB.set('records',state.records);
+ }
  closeActionSheet();
  openAccountModal();
  renderAccounting();
- toast('余额已校准');
+ toast(Math.abs(gap)>=0.005?'余额已校准，流水已对齐 ✓':'余额已校准');
 }
 function delAccount(acctId){
  var a=state.accounts.find(x=>x.id===acctId); if(!a)return;
@@ -5397,7 +5410,7 @@ function openSettings(){
  '<div class="form-group"><label class="form-label">导出备份</label><div style="display:flex;gap:8px"><select id="export-fmt" style="flex:1;min-height:44px;border:1px solid var(--border2);border-radius:10px;padding:0 10px;font-size:13px;background:var(--bg)"><option value="json">JSON 完整备份</option><option value="bills">账单 CSV</option><option value="media">书影音 CSV</option></select><button class="btn-ghost" onclick="doExportByFmt()" style="white-space:nowrap;min-height:44px">导出</button></div></div>'+
  '<div style="display:flex;gap:8px;margin-bottom:8px"><button class="btn-ghost" onclick="importBackup()" style="flex:1">📥 导入恢复</button><button class="btn-ghost" onclick="clearAllData()" style="flex:1;color:var(--expense);border-color:var(--expense)">清空所有数据</button></div>'+
  '<div id="backup-history"></div>'+
- '<div class="sec-title"><div class="left" style="color:#3B82C4">数据同步</div><span style="font-size:10px;background:#E60012;color:#fff;padding:2px 8px;border-radius:6px;font-weight:700">v51</span></div>'
+ '<div class="sec-title"><div class="left" style="color:#3B82C4">数据同步</div><span style="font-size:10px;background:#E60012;color:#fff;padding:2px 8px;border-radius:6px;font-weight:700">v52</span></div>'
 +'<div class="card-tight card mb8" style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:13px">连服务器自动同步（手机电脑共享）</span><button class="btn-ghost" id="supa-on-btn" onclick="supaToggleOn()" style="font-size:12px;padding:6px 14px;min-height:34px">'+(DB.get('sync_on',false)?'已开启':'已关闭')+'</button></div>'
 +'<div class="form-group"><label class="form-label">Supabase 项目 URL</label><input type="text" id="sync-url" value="'+hEsc(DB.get('sync_url','https://zmlkhnhjqcpzhywrgtiw.supabase.co'))+'" placeholder="https://xxxx.supabase.co"></div>'
 +'<div class="form-group"><label class="form-label">anon / public key</label><input type="text" id="sync-key" value="'+hEsc(DB.get('sync_key','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InptbGtobmhqcWNwemh5d3JndGl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYxMjY2NjcsImV4cCI6MjEwMTcwMjY2N30.hZnlONauB0y20wMEF7OG5kRn2uR2PCvcVEfrAE9FoVI'))+'" placeholder="eyJhbGciOi... 或 sb_publishable_..."></div>'
