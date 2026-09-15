@@ -150,6 +150,11 @@ border-bottom:2px dashed var(--border2)}
 .br-btn{padding:5px 12px;border:2px solid var(--border2);border-radius:20px;font-size:12px;font-weight:700;color:var(--text2);cursor:pointer;background:var(--surface)}
 .br-btn.active{background:var(--acc);color:#fff;border-color:var(--acc)}
 .br-cur{margin-left:auto;font-size:11px;color:var(--text3);font-weight:600}
+/* v54 账单账户筛选行 */
+.acct-filter-row{display:flex;align-items:center;gap:6px;margin:0 4px 10px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px}
+.acct-filter-row:empty{display:none}
+.af-chip{flex:0 0 auto;padding:5px 12px;border:2px solid var(--border2);border-radius:20px;font-size:12px;font-weight:700;color:var(--text2);background:var(--surface);cursor:pointer;white-space:nowrap}
+.af-chip.active{background:var(--ink);color:var(--surface);border-color:var(--ink)}
 .pie-legend{margin-top:10px;display:flex;flex-direction:column;gap:6px}
 .pl-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:10px;cursor:pointer;background:var(--surface2)}
 .pl-item:hover{background:var(--surface3)}
@@ -252,6 +257,10 @@ font-weight:600;box-shadow:1.5px 1.5px 0 var(--ink)}
 .cat-btn:active{transform:translate(1px,1px);box-shadow:.5px .5px 0 var(--ink)}
 .cat-btn.active{background:var(--primary);color:#fff;border-color:var(--ink)}
 .cat-btn .ce{font-size:16px}
+/* v54 记账常用模板按钮 */
+.tpl-btn{background:var(--surface2)}
+.tpl-btn em{font-size:10px;font-style:normal;font-weight:700;color:var(--acc);margin-top:1px}
+.tpl-btn span{font-size:11px;line-height:1.2}
 
 .tag-row{display:flex;gap:6px;flex-wrap:wrap}
 .tag-chip{padding:6px 14px;border-radius:20px;font-size:12px;background:var(--surface);
@@ -1533,8 +1542,8 @@ align-items:center;justify-content:center;font-size:13px}
 </div>
 <div id="bill-list-view">
 <div class="bill-rangebar">
-<span class="br-btn active" id="br-week" onclick="setBillRange('week')">本周</span>
-<span class="br-btn" id="br-month" onclick="setBillRange('month')">本月</span>
+<span class="br-btn" id="br-week" onclick="setBillRange('week')">本周</span>
+<span class="br-btn active" id="br-month" onclick="setBillRange('month')">本月</span>
 <span class="br-btn" id="br-custom" onclick="showBillCustom()">自定义</span>
 <span class="br-cur" id="br-cur"></span>
 </div>
@@ -1544,6 +1553,7 @@ align-items:center;justify-content:center;font-size:13px}
 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M7 12h10M10 18h4"/></svg>筛选
 </div>
 </div>
+<div class="acct-filter-row" id="bill-acct-filter"></div>
 <div id="rec-list"></div>
 </div>
 <div id="bill-analysis-view" style="display:none">
@@ -2299,6 +2309,8 @@ let state={
  contactTags:DB.get('contactTags',[]),
  workFilter:DB.get('workFilter','all'),
  recPref:DB.get('recPref',null), // v53 记账偏好记忆（上次的类型/分类/标签）
+ recTemplates:DB.get('recTemplates',[]), // v54 记账常用模板（按使用频次排序）
+ usageStats:DB.get('usageStats',{}), // v54 模块使用热度（首页快捷入口自适应排序）
 };
 
 if(!Array.isArray(state.accounts)||state.accounts.length===0){state.accounts=DEFAULT_ACCTS;DB.set('accounts',state.accounts)}
@@ -2540,8 +2552,49 @@ function loadDemoData(){
 }
 
 // ============ Tabs ============
+// ============ v54 使用热度 / 首页快捷入口自适应 ============
+function bumpUsage(id){
+ if(!id)return;
+ let s=state.usageStats;
+ if(!s||typeof s!=='object')s={};
+ s[id]=(s[id]||0)+1;
+ state.usageStats=s;
+ DB.set('usageStats',s);
+}
+// 首页快捷区：第 1 格固定「记一笔」，其余 3 格按实际点击热度排序（def=无数据时的默认权重，与改造前顺序一致）
+function renderQuickRow(undone){
+ const firstHabit=undone&&undone[0];
+ const habitLabel=firstHabit?('☑️ '+(firstHabit.name.length>5?firstHabit.name.slice(0,5)+'…':firstHabit.name)):'☑️ 全完成';
+ const POOL=[
+  {k:'habit',def:6,cls:'hab',svg:'<path d="M20 6L9 17l-5-5"/>',txt:habitLabel,act:'openHabits()'},
+  {k:'smart',def:5,cls:'food',domId:'qa-suggest',svg:'<path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><path d="M3 6h18M16 10a4 4 0 01-8 0"/>',txt:'✨ 智能建议',act:''},
+  {k:'task',def:4,cls:'shop',svg:'<path d="M9 11l3 3L22 4M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>',txt:'📋 加任务',act:'openWorkForm()'},
+  {k:'jp',def:3,cls:'hab',svg:'<path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/>',txt:'📚 日语课',act:'openJapanese()'},
+  {k:'shop',def:2,cls:'shop',svg:'<path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><path d="M3 6h18M16 10a4 4 0 01-8 0"/>',txt:'🛒 购物清单',act:"switchTab('shopping')"},
+  {k:'media',def:1,cls:'food',svg:'<path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/>',txt:'🎬 书影音',act:"switchTab('media')"},
+ ];
+ const st=(state.usageStats&&typeof state.usageStats==='object')?state.usageStats:{};
+ const sorted=POOL.slice().sort(function(a,b){
+  const d=(st[b.k]||0)-(st[a.k]||0);
+  return d!==0?d:(b.def-a.def);
+ });
+ const top=sorted.slice(0,3);
+ const el=document.getElementById('quick-row'); if(!el)return;
+ el.innerHTML=
+  '<div class="quick-btn acc" onclick="if(!_voiceFired)openRecordModal()" onmousedown="voiceLPStart()" onmouseup="voiceLPEnd()" onmouseleave="voiceLPEnd()" ontouchstart="voiceLPStart()" ontouchend="voiceLPEnd()" title="点一下记一笔，长按试试语音记账">'+
+   '<svg class="qi" viewBox="0 0 24 24"><path d="M13 2L3 14h7l-1 8 10-12h-7z"/></svg>'+
+   '<div class="qt">⚡ 记一笔</div></div>'+
+  top.map(function(x){
+   return '<div class="quick-btn '+x.cls+'"'+(x.domId?' id="'+x.domId+'"':'')+(x.act?' onclick="'+x.act+'"':'')+'>'+
+    '<svg class="qi" viewBox="0 0 24 24">'+x.svg+'</svg><div class="qt">'+x.txt+'</div></div>';
+  }).join('');
+}
+
 function switchTab(tab){
  if(!document.getElementById('tab-'+tab))return;
+ // v54 使用热度埋点（用于首页快捷入口自适应排序）
+ const _um={shopping:'shop',media:'media',work:'work',accounting:'accounting'};
+ if(_um[tab])try{bumpUsage(_um[tab])}catch(e){}
  state.tab=tab;
  document.querySelectorAll('.tab-content').forEach(e=>e.classList.remove('active'));
  document.getElementById('tab-'+tab).classList.add('active');
@@ -2557,6 +2610,7 @@ function renderTab(tab){
  if(tab==='work')renderWork();
 }
 function openHabits(){
+ try{bumpUsage('habit')}catch(e){}
  switchTab('mine');
  renderHabits();
  openSubpage('subpage-habits');
@@ -2672,27 +2726,9 @@ function renderDashboard(){
    ${emo.sub?`<div class="emo-sub">${emo.sub}</div>`:''}
   </div>`;
 
- // Quick Actions (区域2：四张规格卡片)
+ // Quick Actions (区域2：第 1 格固定「记一笔」，其余按使用热度自适应)
  const undone=state.habits.filter(h=>{const log=state.habitLogs[ts]?.[h.id];return !log||log.val<(h.minTarget||h.target)});
- const firstHabit=undone[0];
- const habitLabel=firstHabit?('☑️ '+(firstHabit.name.length>5?firstHabit.name.slice(0,5)+'…':firstHabit.name)):'☑️ 全完成';
- document.getElementById('quick-row').innerHTML=
-  `<div class="quick-btn acc" onclick="if(!_voiceFired)openRecordModal()" onmousedown="voiceLPStart()" onmouseup="voiceLPEnd()" onmouseleave="voiceLPEnd()" ontouchstart="voiceLPStart()" ontouchend="voiceLPEnd()" title="点一下记一笔，长按试试语音记账">
-   <svg class="qi" viewBox="0 0 24 24"><path d="M13 2L3 14h7l-1 8 10-12h-7z"/></svg>
-   <div class="qt">⚡ 记一笔</div>
-  </div>
-  <div class="quick-btn hab" onclick="openHabits()">
-   <svg class="qi" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>
-   <div class="qt">${habitLabel}</div>
-  </div>
-  <div class="quick-btn food" id="qa-suggest">
-   <svg class="qi" viewBox="0 0 24 24" style="stroke:var(--media)"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><path d="M3 6h18M16 10a4 4 0 01-8 0"/></svg>
-   <div class="qt">✨ 智能建议</div>
-  </div>
-  <div class="quick-btn shop" onclick="openWorkForm()">
-   <svg class="qi" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
-   <div class="qt">📋 加任务</div>
-  </div>`;
+ renderQuickRow(undone);
  renderRecoCard();renderSmartSuggestion();
 }
 
@@ -3102,6 +3138,8 @@ function openBuyNow(){
 function renderSmartSuggestion(){
  try{
   const el=document.getElementById('qa-suggest'); if(!el)return;
+  // v54 智能建议点击计入使用热度（用 addEventListener，不会被下面的 el.onclick= 覆盖）
+  if(!el._bumpHooked){ el._bumpHooked=true; el.addEventListener('click',function(){ bumpUsage('smart'); }); }
   const ts=todayStr();
   // 1) 今天有未完成的喝水习惯 → 跳习惯页
   const waterHabit=state.habits.find(function(h){return h.name==='喝水'||h.cat==='water'||((h.unit||'').indexOf('ml')>=0);});
@@ -3305,8 +3343,9 @@ function checkBackupHint(){
 // ============ Accounting ============
 // ============ 记账视图 / 区间 / 分析 ============
 var billView='list';      // 'list' | 'analysis'
-var billRange='month';    // 'week' | 'month' | 'custom'
+var billRange='month';    // 默认「本月」（v54 校正：HTML 初始高亮原来错标在「本周」）
 var billCustomStart='', billCustomEnd='';
+var billAcctFilter='';    // v54 账单按账户筛选（'' = 全部账户）
 function weekRange(){
  const today=new Date(); today.setHours(0,0,0,0);
  const day=(today.getDay()+6)%7; // 周一为起点
@@ -3322,6 +3361,7 @@ function _billInRange(r,range){
 }
 function setBillView(v){ billView=v; renderAccounting(); }
 function setBillRange(r){ billRange=r; renderAccounting(); }
+function setBillAcctFilter(id){ billAcctFilter=id||''; renderAccounting(); } // v54 账单按账户筛选
 function showBillCustom(){
  const s=window.prompt('自定义开始日期（YYYY-MM-DD）', billCustomStart||todayStr());
  if(!s)return;
@@ -3413,9 +3453,17 @@ function renderAccounting(){
  var curTxt=''; if(billRange==='week')curTxt='本周'; else if(billRange==='month')curTxt='本月'; else curTxt=(billCustomStart||'?')+' ~ '+(billCustomEnd||'?');
  const curEl=document.getElementById('br-cur'); if(curEl)curEl.textContent=curTxt+(state.settings.filterCat?(' · '+state.settings.filterCat):'');
  const curEl2=document.getElementById('br-a-cur'); if(curEl2)curEl2.textContent=curTxt+(state.settings.filterCat?(' · '+state.settings.filterCat):'');
- // 时间线（按区间 + 分类 过滤，默认时间倒序）
+ // 时间线（按区间 + 分类 + 账户 过滤，默认时间倒序）
+ const afEl=document.getElementById('bill-acct-filter');
+ if(afEl){
+  if(state.accounts.length>1){
+   afEl.innerHTML='<div class="af-chip'+(billAcctFilter===''?' active':'')+'" onclick="setBillAcctFilter(\'\')">全部账户</div>'+
+    state.accounts.map(a=>'<div class="af-chip'+(billAcctFilter===a.id?' active':'')+'" onclick="setBillAcctFilter(\''+a.id+'\')">'+(a.icon||'')+' '+hEsc(a.name)+'</div>').join('');
+  }else{ afEl.innerHTML=''; }
+ }
  const filtered=state.records.filter(function(r){
    if(state.settings.filterCat && r.cat!==state.settings.filterCat)return false;
+   if(billAcctFilter && r.acct!==billAcctFilter && r.acctTo!==billAcctFilter)return false; // v54 账户筛选（转账双边都算该账户流水）
    return _billInRange(r,billRange);
  });
  const sorted=[...filtered].sort((a,b)=>b.ts-a.ts);
@@ -3441,6 +3489,45 @@ function renderAccounting(){
  const recEl=document.getElementById('rec-list'); if(recEl)recEl.innerHTML=html;
  // 分析视图
  if(billView==='analysis'){ updateBillAnalysisTitle(); renderBillPie(); renderBillBar(); renderBillTop3(); }
+}
+
+// v54 记账常用模板：按「类型+分类+子分类+标签+金额」聚合，用得多的排前面
+function bumpRecTemplate(t,cat,sub,amt,tags){
+ if(t==='transfer'||!cat)return;
+ const tg=(tags||[]).slice().sort().join(',');
+ const key=t+'|'+cat+'|'+sub+'|'+tg+'|'+amt;
+ let list=Array.isArray(state.recTemplates)?state.recTemplates.slice():[];
+ const hit=list.find(x=>x.key===key);
+ if(hit){ hit.count=(hit.count||0)+1; hit.ts=Date.now(); }
+ else list.push({key,type:t,cat,sub,amount:amt,tags:(tags||[]).slice(),count:1,ts:Date.now()});
+ list.sort((a,b)=>((b.count||0)-(a.count||0))||((b.ts||0)-(a.ts||0)));
+ state.recTemplates=list.slice(0,12);
+ DB.set('recTemplates',state.recTemplates);
+}
+function renderRecTemplates(){
+ const area=document.getElementById('rec-tpl-area'); if(!area)return;
+ const curType=document.querySelector('.type-tab.active')?.textContent.trim();
+ if(curType==='转账'){ area.innerHTML=''; window._tplList=[]; return; }
+ const tKey=curType==='收入'?'income':'expense';
+ const list=(state.recTemplates||[]).filter(x=>x.type===tKey).slice(0,5);
+ window._tplList=list;
+ if(!list.length){ area.innerHTML=''; return; }
+ area.innerHTML='<label class="form-label">常用 <span style="font-weight:400;color:var(--text3);font-size:11px">点一下自动填好</span></label><div class="cat-grid">'+
+  list.map((x,i)=>'<div class="cat-btn tpl-btn" onclick="applyRecTemplate('+i+')">'+(CAT_ICONS[x.cat]||'📝')+'<span>'+hEsc(x.sub||x.cat)+'</span><em>¥'+round2(x.amount)+'</em></div>').join('')+
+  '</div>';
+}
+function applyRecTemplate(i){
+ const x=(window._tplList||[])[i]; if(!x)return;
+ setRecType(x.type);
+ const amtEl=document.getElementById('rec-amt'); if(amtEl)amtEl.value=x.amount;
+ const cats=x.type==='income'?CATS_INC:CATS_EXP;
+ if(cats&&cats[x.cat]) renderCatGrid(x.type,x.cat,x.sub||'');
+ const ta=document.getElementById('tag-area'); if(ta)ta.style.display='';
+ document.querySelectorAll('#rec-tags .tag-chip').forEach(c=>{
+  c.classList.toggle('active',(x.tags||[]).includes(c.dataset.tag));
+ });
+ updateLossEquiv();
+ toast('已套用「'+(x.sub||x.cat)+'」');
 }
 
 // v53 记账默认账户：优先「储蓄卡」（用户习惯——日常记账默认走储蓄卡，而非列表里的第一个现金账户）
@@ -3477,6 +3564,7 @@ function openRecordModal(prefill){
  '<div class="type-tabs"><div class="type-tab exp '+(curType==='expense'?'active':'')+'" onclick="setRecType(\'expense\')">支出</div><div class="type-tab inc '+(curType==='income'?'active':'')+'" onclick="setRecType(\'income\')">收入</div><div class="type-tab trf '+(curType==='transfer'?'active':'')+'" onclick="setRecType(\'transfer\')">转账</div></div>'+
  '<div class="amt-wrap '+(curType==='expense'?'exp':curType==='income'?'inc':'')+'"><input class="amt-input" id="rec-amt" type="number" placeholder="0" value="'+curAmt+'" inputmode="decimal"></div>'+
  '<div id="loss-equiv-area"></div>'+
+ '<div class="form-group" id="rec-tpl-area"></div>'+
  '<div id="rec-cat-area"></div>'+
  '<div class="form-group"><label class="form-label">账户</label><div class="cat-grid" id="rec-acct">'+accts+'</div></div>'+
  '<div class="form-group" id="rec-acct-to-area" style="display:none"></div>'+
@@ -3487,6 +3575,7 @@ function openRecordModal(prefill){
  '<button class="btn-primary" onclick="saveRecord()">确认记入</button><div id="rec-hook-area" class="mt12"></div>';
  openModal();
  renderCatGrid(curType,curCat,curSub);
+ renderRecTemplates();
  bindRecEvents();
  const _ta=document.getElementById('tag-area'); if(_ta)_ta.style.display=curType==='transfer'?'none':''; // 转账不显示冲动标签
  renderAcctToSelector((prefill&&prefill.acctTo)||'', !!(prefill&&prefill.type==='transfer'&&!prefill.acctTo));
@@ -3541,6 +3630,7 @@ function setRecType(type){
  }
  document.getElementById('loss-equiv-area').innerHTML='';
  renderCatGrid(type,'','');
+ renderRecTemplates();
  renderAcctToSelector();
  renderRecShopSelector();
 }
@@ -3690,6 +3780,8 @@ function saveRecord(){
  try{ addRecord(rec); }catch(e){ console.warn('[addRecord]',e); }
  // v53 记住本次类型/分类/标签，下次记账自动预选（高频记账少点几下）
  state.recPref={type:t,cat,sub,tags:(tags||[]).slice()}; DB.set('recPref',state.recPref);
+ // v54 累计常用模板（频次越高越靠前）
+ try{ bumpRecTemplate(t,cat,sub,amt,tags); }catch(e){}
  var _selId=document.getElementById('rec-shop')?.value||'';
  if(_selId){ rec.shopItemId=_selId; syncRecShop(rec,_selId); DB.set('records',state.records); renderAccounting(); }
  closeModal();
@@ -5428,7 +5520,7 @@ function openSettings(){
  '<div class="form-group"><label class="form-label">导出备份</label><div style="display:flex;gap:8px"><select id="export-fmt" style="flex:1;min-height:44px;border:1px solid var(--border2);border-radius:10px;padding:0 10px;font-size:13px;background:var(--bg)"><option value="json">JSON 完整备份</option><option value="bills">账单 CSV</option><option value="media">书影音 CSV</option></select><button class="btn-ghost" onclick="doExportByFmt()" style="white-space:nowrap;min-height:44px">导出</button></div></div>'+
  '<div style="display:flex;gap:8px;margin-bottom:8px"><button class="btn-ghost" onclick="importBackup()" style="flex:1">📥 导入恢复</button><button class="btn-ghost" onclick="clearAllData()" style="flex:1;color:var(--expense);border-color:var(--expense)">清空所有数据</button></div>'+
  '<div id="backup-history"></div>'+
- '<div class="sec-title"><div class="left" style="color:#3B82C4">数据同步</div><span style="font-size:10px;background:#E60012;color:#fff;padding:2px 8px;border-radius:6px;font-weight:700">v53</span></div>'
+ '<div class="sec-title"><div class="left" style="color:#3B82C4">数据同步</div><span style="font-size:10px;background:#E60012;color:#fff;padding:2px 8px;border-radius:6px;font-weight:700">v54</span></div>'
 +'<div class="card-tight card mb8" style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:13px">连服务器自动同步（手机电脑共享）</span><button class="btn-ghost" id="supa-on-btn" onclick="supaToggleOn()" style="font-size:12px;padding:6px 14px;min-height:34px">'+(DB.get('sync_on',false)?'已开启':'已关闭')+'</button></div>'
 +'<div class="form-group"><label class="form-label">Supabase 项目 URL</label><input type="text" id="sync-url" value="'+hEsc(DB.get('sync_url','https://zmlkhnhjqcpzhywrgtiw.supabase.co'))+'" placeholder="https://xxxx.supabase.co"></div>'
 +'<div class="form-group"><label class="form-label">anon / public key</label><input type="text" id="sync-key" value="'+hEsc(DB.get('sync_key','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InptbGtobmhqcWNwemh5d3JndGl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYxMjY2NjcsImV4cCI6MjEwMTcwMjY2N30.hZnlONauB0y20wMEF7OG5kRn2uR2PCvcVEfrAE9FoVI'))+'" placeholder="eyJhbGciOi... 或 sb_publishable_..."></div>'
@@ -5762,7 +5854,7 @@ function renderBuddyBar(){
     commitHtml+
   '</div>';
 }
-function openJapanese(){ try{ renderJapanese(); openSubpage('subpage-japanese'); renderBuddyBar(); onOpenStudyBuddy(); }catch(e){} }
+function openJapanese(){ try{bumpUsage('jp')}catch(e){} try{ renderJapanese(); openSubpage('subpage-japanese'); renderBuddyBar(); onOpenStudyBuddy(); }catch(e){} }
 function jpSegBar(label, done, total, color){ const pct=total>0?Math.round(done/total*100):0; return '<div class="jp-prog-row"><div class="jp-prog-label">'+label+' <b>'+done+'/'+total+'</b></div><div class="jp-bar"><div class="jp-bar-fill" style="width:'+pct+'%;background:'+color+'"></div></div><div class="jp-prog-pct">'+pct+'%</div></div>'; }
 function renderJapanese(){
  try{
@@ -6817,6 +6909,7 @@ function wkSetRepeat(r){
  if(r!=='none')shinPop('caught','小新说：又来了又来了！这个任务会像野原家的账单一样，永远缠着你哦～');
 }
 function openWorkForm(id){
+ try{bumpUsage('task')}catch(e){}
  try{
  wkEditId=id||null;wkSelTags=[];wkLevel=1;wkRepeat='none';
  const t=id?getTasks().find(x=>x.id===id):null;
@@ -7106,6 +7199,8 @@ var SYNC_WHITELIST={
   habitLogs:{cap:200},       // 打卡日志（截断，v32.5 加回）
   settings:{cap:0},          // 设置（小）
   recPref:{cap:0},           // 记账偏好记忆（类型/分类/标签，小）
+  recTemplates:{cap:20},     // 记账常用模板（按频次排序，截断）
+  usageStats:{cap:0},        // 模块使用热度（首页快捷入口排序依据，小）
   points:{cap:0},            // 积分（小）
   pointsLog:{cap:200},       // 积分日志（截断）
   rewards:{cap:0},           // 奖励商城（小）
